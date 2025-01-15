@@ -596,7 +596,7 @@ switch seqType
             MRSCont.opts.fit.coMM3 = opts.fit.coMM3;
             MRSCont.opts.fit.FWHMcoMM3 = opts.fit.FWHMcoMM3;
         else
-            MRSCont.opts.fit.coMM3 = 'freeGauss';
+            MRSCont.opts.fit.coMM3 = 'fixedGauss';
             MRSCont.opts.fit.FWHMcoMM3 = 14;
         end
         if ~isfield(MRSCont.opts.fit, 'GAP')
@@ -638,7 +638,7 @@ switch seqType
                 MRSCont.opts.fit.FWHMcoMM3 = opts.fit.FWHMcoMM3;
             end
         else
-            MRSCont.opts.fit.coMM3 = 'freeGauss';
+            MRSCont.opts.fit.coMM3 = 'fixedGauss';
             MRSCont.opts.fit.FWHMcoMM3 = 14;
         end
         if ~isfield(MRSCont.opts.fit, 'GAP')

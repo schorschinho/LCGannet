@@ -81,6 +81,7 @@ if ~isempty(find(strcmp(basisSet.name, 'Glu')))
     metabList.Glu   = 1;
 end
 
+
 if ~exist('metabList','var')
     msg = 'Your metabolite list does not contain any of the standard metabolites (NAA, Cr, PCh, mI, or Glu) used for the preliminary fiting. You have to either include one of those or you have to update the prelinimary fitting function';
     fprintf(msg);
@@ -138,8 +139,8 @@ lb_ph1          = -10;
 ub_ph1          = +10;  % First order phase shift [deg/ppm]
 lb_gaussLB      = 0; 
 ub_gaussLB      = sqrt(5000); % Gaussian dampening [Hz]
-lb_freqShift    = -5; 
-ub_freqShift    = +5;    % Frequency shift [Hz]
+lb_freqShift    = -15; 
+ub_freqShift    = +15;    % Frequency shift [Hz]
 lb_amplMets     = zeros(nMets,1);
 ub_amplMets     = Inf*ones(nMets,1); % Metabolite amplitudes
 lb_beta_j       = -Inf*ones(nSplines,1);
@@ -150,18 +151,40 @@ lb  = [lb_ph0; lb_ph1; lb_gaussLB; lb_freqShift; lb_amplMets; lb_beta_j];
 ub  = [ub_ph0; ub_ph1; ub_gaussLB; ub_freqShift; ub_amplMets; ub_beta_j];
 
 % Set up and run the non-linear solver.
-opts.Display    = 'off';
-opts.TolFun     = 1e-6;
-opts.TolX       = 1e-6;
-opts.MaxIter    = 400;
-[x] = LevenbergMarquardt(@(x) fit_Osprey_PrelimReduced_Model(x, inputData, inputSettings),x0,lb,ub,opts);
+%%%%%%% Old call for Dentler LM start
+    % opts.Display    = 'off';
+    % opts.TolFun     = 1e-6;
+    % opts.TolX       = 1e-6;
+    % opts.MaxIter    = 400;
+    % [x] = LevenbergMarquardt(@(x) fit_Osprey_PrelimReduced_Model(x, inputData, inputSettings),x0,lb,ub,opts);
+%%%%%%% Old call for Dentler LM end
+
+inputSettings.NoiseSD = dataToFit.NoiseSD;
+
+opts = optimoptions('lsqnonlin', ...
+                    'Algorithm','levenberg-marquardt', ...      % Use LM
+                    'SpecifyObjectiveGradient',true,...        % Use analytic jacobian
+                    'CheckGradients',false, ...                 % Check gradient
+                    'FiniteDifferenceType','central', ...       % for numerically calculated jacobian only
+                    'MaxIterations',1000, ...                   % Iterations
+                    'Display','none');                       % Display no iterations
+[x,~,~,~,~,~,~] = lsqnonlin(@(x) fit_Osprey_PrelimReduced_Model(x, inputData, inputSettings), x0, lb, ub, opts ); % Run solver
 
 
 %%% 4. PERFORM FINAL COMPUTATION OF LINEAR PARAMETERS %%%
 % After the non-linear optimization is finished, we need to perform the
 % final evaluation of the linear parameters (i.e. the amplitudes and
 % baseline parameters).
-[fitParamsFinal] = fit_Osprey_PrelimReduced_finalLinear(x, inputData, inputSettings);
+% [fitParamsFinal] = fit_Osprey_PrelimReduced_finalLinear(x, inputData, inputSettings);
+
+
+fitParamsFinal.ph0          = x(1);
+fitParamsFinal.ph1          = x(2);
+fitParamsFinal.gaussLB      = x(3);
+fitParamsFinal.lorentzLB    = lorentzLB;
+fitParamsFinal.freqShift    = x(4);
+fitParamsFinal.ampl         = x(5:4+nMets);
+fitParamsFinal.beta_j       = x(5+nMets:end);
 
 
 %%% 5. CREATE OUTPUT %%%
@@ -179,7 +202,7 @@ end
 %%%%%%%%%%%%%%% MODEL FUNCTION %%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function F = fit_Osprey_PrelimReduced_Model(x, inputData, inputSettings)
+function [F,J] = fit_Osprey_PrelimReduced_Model(x, inputData, inputSettings)
 %   This function receives the current set of non-linear parameters during
 %   every iteration of the non-linear least-squares optimization. The
 %   parameters are applied to the basis set.
@@ -238,6 +261,7 @@ for ii=1:nMets
     resBasisSet.fids(:,ii) = resBasisSet.fids(:,ii) * exp(1i*ph0);
 end
 resBasisSet.specs = fftshift(fft(resBasisSet.fids,[],1),1);
+resBasisSetWithTDOps = resBasisSet;
 
 % Run the frequency-domain operations on the basis functions
 % (first order phase correction)
@@ -277,166 +301,16 @@ dataToFit   = op_freqrange(dataToFit, fitRangePPM(1), fitRangePPM(end),size(spli
 data        = [real(dataToFit.specs); imag(dataToFit.specs)];
 b           = data;
 
-% The function we want to minimize is the sum of squares of the residual
-fcn     = @(x) norm( AB*x - b)^2;
-AtA     = AB'*AB; Ab = AB'*b;
-grad    = @(x) 2*( AtA*x - Ab );
-
-% Define bounds. The lower bounds for the metabolite/MM/lipid basis
-% functions are zero. All other parameters are supposed to be unbound.
-l = [zeros(nMets,1);    -inf*ones(nSplines,1)];
-u = [inf*ones(nMets,1);  inf*ones(nSplines,1)];
-
-% Prepare the function wrapper
-fun     = @(x)fminunc_wrapper( x, fcn, grad);
-% Request very high accuracy:
-opts    = struct( 'factr', 1e4, 'pgtol', 1e-8, 'm', 10);
-opts.printEvery     = 0;
-
-% Run the algorithm:
-% Feed initial guess from the input parameters
-opts.x0 = ampl;
-[ampl, ~, ~] = lbfgsb(fun, l, u, opts );
-
-
 %%% 4. CREATE OBJECTIVE FUNCTION
 % The objective function to be minimized by the non-linear least squares
 % solver is the fit residual:
 F = data - (AB*ampl);
 
-
-end
-
-
+Sigma = inputSettings.NoiseSD;                           % Get sigma
+F = F./Sigma;
 
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%% FINAL LINEAR ITERATION %%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function [fitParamsFinal] = fit_Osprey_PrelimReduced_finalLinear(x, inputData, inputSettings)
-%   This function is applied after the final iteration of the non-linear
-%   solver has returned the final set of non-linear parameters.
-%
-%   At this point, the linear solver has to be run one last time to
-%   estimate the final set of linear parameters.
-%
-%   The function returns all model parameters.
-%
-%   USAGE:
-%       fitParamsFinal = fit_LCModel_PrelimReduced_finalLinear(x, inputData, inputSettings)
-%
-%   INPUTS:
-%       x           = Vector providing the last set of parameters coming
-%                     out of the non-linear solver
-%       inputData   = Struct containing all necessary data to prepare the
-%                     final linear solving step (data, basis set...).
-%       inputSettings = Struct containing all necessary settings.
-%
-%   OUTPUTS:
-%       fitParamsFinal = Set of final fit parameters
-
-
-%%% 1. UNPACK THE INPUT %%%
-% ... data:
-dataToFit     = inputData.dataToFit;
-resBasisSet   = inputData.resBasisSet;
-splineArray   = inputData.splineArray;
-% ... settings:
-fitRangePPM   = inputSettings.fitRangePPM;
-lorentzLB     = inputSettings.lorentzLB;
-% ... fit parameters
-nMets       = resBasisSet.nMets; % number of metabolite basis functions
-nSplines    = size(splineArray,2); % number of spline basis functions
-ph0         = x(1) * pi/180; % zero-order phase correction [convert from deg to rad]
-ph1         = x(2) * pi/180; % first-order phase correction [convert from deg/ppm to rad/ppm]
-gaussLB     = x(3); % Gaussian dampening [Hz]
-freqShift   = x(4); % Common frequency shift [Hz]
-ampl        = x(5:end); % Amplitudes for each basis function
-
-
-%%% 2. APPLY THE NON-LINEAR PARAMETERS %%%
-% Run the time-domain operations on the metabolite basis functions
-% (frequency shift, Lorentzian dampening, Gaussian dampening, zero phase shift)
-t = resBasisSet.t;
-for ii=1:nMets
-    resBasisSet.fids(:,ii) = resBasisSet.fids(:,ii) .* exp(-1i*freqShift.*t)' .* exp(-lorentzLB.*t)' .* exp(-gaussLB^2.*t.*t)';    
-    resBasisSet.fids(:,ii) = resBasisSet.fids(:,ii) * exp(1i*ph0);
-end
-resBasisSet.specs = fftshift(fft(resBasisSet.fids,[],1),1);
-
-% Run the frequency-domain operations on the basis functions
-% (first order phase correction)
-% Cut out the frequency range of the basis set
-resBasisSet = op_freqrange(resBasisSet,fitRangePPM(1),fitRangePPM(end),size(splineArray,1));
-% Create a ppm vector around a pivot point (water)
-ppm_ax      = resBasisSet.ppm;
-pivotPoint  = 4.68;
-multiplier  = ppm_ax - pivotPoint;
-% Apply the linear phase correction
-for ii=1:nMets
-    resBasisSet.specs(:,ii) = resBasisSet.specs(:,ii) .* exp(1i*ph1*multiplier);
-end
-resBasisSet.fids = ifft(fftshift(resBasisSet.specs,1),[],1);
-
-% Apply phasing to the spline basis functions
-B = [splineArray(:,:,1) + 1i*splineArray(:,:,2)];
-B = B  * exp(1i*ph0);
-B = B .* exp(1i*ph1*multiplier);
-B = [real(B); imag(B)];
-
-
-%%% 3. SET UP AND CALL SOLVER FOR LINEAR PARAMETERS %%%
-% To calculate the linearly occurring amplitude parameters for the
-% metabolite/MM/lipid basis functions and the baseline basis functions, we
-% call the linear L-BFGS-B algorithm.
-% (c) Stephen Becker
-% (https://www.mathworks.com/matlabcentral/fileexchange/35104-lbfgsb-l-bfgs-b-mex-wrapper)
-
-% Set up the equation system to be solved
-% Concatenate the metabolite/MM/lipid basis functions and the baseline basis
-% functions
-A   = [real(resBasisSet.specs); imag(resBasisSet.specs)];
-AB  = [A B];
-% Cut out the data over the fit range, and turn complex into real problem
-dataToFit   = op_freqrange(dataToFit, fitRangePPM(1), fitRangePPM(end),size(splineArray,1));
-data        = [real(dataToFit.specs); imag(dataToFit.specs)];
-b           = data;
-
-% The function we want to minimize is the sum of squares of the residual
-fcn     = @(x) norm( AB*x - b)^2;
-AtA     = AB'*AB; Ab = AB'*b;
-grad    = @(x) 2*( AtA*x - Ab );
-
-% Define bounds. The lower bounds for the metabolite/MM/lipid basis
-% functions are zero. All other parameters are supposed to be unbound.
-l = [zeros(nMets,1);    -inf*ones(nSplines,1)];
-u = [inf*ones(nMets,1);  inf*ones(nSplines,1)];
-
-% Prepare the function wrapper
-fun     = @(x)fminunc_wrapper( x, fcn, grad);
-% Request very high accuracy:
-opts    = struct( 'factr', 1e4, 'pgtol', 1e-8, 'm', 10);
-opts.printEvery     = 0;
-
-% Run the algorithm:
-% Feed initial guess from the input parameters
-opts.x0 = ampl;
-[ampl, ~, ~] = lbfgsb(fun, l, u, opts );
-
-
-%%% 4. CREATE OUTPUT %%%
-% Return the final fit parameters
-fitParamsFinal.ampl         = ampl(1:nMets);
-fitParamsFinal.ph0          = x(1);
-fitParamsFinal.ph1          = x(2);
-fitParamsFinal.gaussLB      = x(3);
-fitParamsFinal.lorentzLB    = lorentzLB;
-fitParamsFinal.freqShift    = x(4);
-fitParamsFinal.beta_j       = ampl(nMets+1:end);
-
-% % Plot (comment out if not debugging)
+% Plot (comment out if not debugging)
 % figure(99)
 % plot(data); hold;
 % plot(AB*ampl);
@@ -447,6 +321,84 @@ fitParamsFinal.beta_j       = ampl(nMets+1:end);
 % title('Preliminary Analysis with reduced basis set');
 % hold;
 
+%%% 5. CALCULATE ANALYTIC JACOBIAN 
 
-end 
+Acomp = resBasisSet.specs;
+Bcomp = [splineArray(:,:,1) + 1i*splineArray(:,:,2)];
+Bcomp = Bcomp  * exp(1i*ph0);
+Bcomp = Bcomp .* exp(1i*ph1*multiplier);
+
+ABcomp = [Acomp Bcomp];
+completeFit = ABcomp*ampl;
+
+
+%Computation of the Jacobian
+J = zeros(length(data)/2,length(x));
+
+
+%derivative wrt ph0
+J(:,1) = 1i * completeFit * pi/180;
+
+%derivative wrt ph1
+J(:,2) = 1i *  completeFit .* multiplier * pi/180;
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt gaussLB
+for ii = 1:nMets
+        tempBasis.fids(:,ii) = -2*gaussLB*tempBasis.fids(:,ii).*(t.^2)';        
+end
+tempBasis = op_freqrange(tempBasis,fitRangePPM(1),fitRangePPM(end),length(splineArray(:,1,1)));
+% Create a ppm vector around a pivot point (water)
+ppm_ax = tempBasis.ppm;
+pivotPoint = 4.68;
+multiplier = ppm_ax - pivotPoint;
+% Apply the linear phase correction
+for ii=1:nMets
+    tempBasis.specs(:,ii) = tempBasis.specs(:,ii) .* exp(1i*ph1*multiplier);
+end
+
+for ii = 1:nMets
+    J(:,3) = J(:,3) + tempBasis.specs(:,ii)*ampl(ii);             
+end
+
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt freqShift
+for ii = 1:nMets
+        tempBasis.fids(:,ii) = 1i*tempBasis.fids(:,ii).*t';        
+end
+tempBasis = op_freqrange(tempBasis,fitRangePPM(1),fitRangePPM(end),length(splineArray(:,1,1)));
+% Create a ppm vector around a pivot point (water)
+ppm_ax = tempBasis.ppm;
+pivotPoint = 4.68;
+multiplier = ppm_ax - pivotPoint;
+% Apply the linear phase correction
+for ii=1:nMets
+    tempBasis.specs(:,ii) = tempBasis.specs(:,ii) .* exp(1i*ph1*multiplier);
+end
+
+for ii = 1:nMets
+    J(:,4) = J(:,4) + tempBasis.specs(:,ii)*ampl(ii);             
+end
+
+% derivative  wrt basis set  amplitudes 
+for ii=1:nMets
+        J(:,4+ii) = Acomp(:,ii);
+end
+
+
+% derivative wrt spline amplitudes
+for ii=1:nSplines
+    J(:,4+nMets+ii) = Bcomp(:,ii);
+end
+
+Sigma = inputSettings.NoiseSD;                           % Get sigma
+J = J./Sigma;
+
+J   = [real(J); imag(J)]; 
+
+J = -J;
+
+end
+
 

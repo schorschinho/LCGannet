@@ -47,6 +47,11 @@ if length(includeMetabs) == 1
         for ll = 1:length(all_mets)
             metabList.(all_mets{ll}) = 1;
         end
+    else
+        % ... otherwise, if a list of metabolite names is provided, use it.
+        for ll = 1:length(includeMetabs)
+            metabList.(includeMetabs{ll}) = 1;
+        end
     end
 else
     % ... otherwise, if a list of metabolite names is provided, use it.

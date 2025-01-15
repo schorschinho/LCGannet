@@ -1,4 +1,4 @@
-function [augmA, augmb] = fit_createSoftConstrOsprey(basisSet, A, b, ampl)
+function [augmA, augmb, J_augmb] = fit_createSoftConstrOsprey(basisSet, A, b, ampl)
 %% [augmA, augmb] = fit_createSoftConstrOsprey(basisSet, A, b)
 %   This function augments an unconstrained non-negative least-squares
 %   (NNLS) problem of the form min(||Ax-b||^2) with x >= 0 to include soft 
@@ -97,6 +97,7 @@ lambda = 0.05;
 % (Wilson et al., MRM 2011, section 2.1.6.)
 augmA = zeros(length(constr1.met)+length(constr2.met), size(A,2));
 augmb = zeros(length(constr1.met)+length(constr2.met), size(b,2));
+J_augmb = zeros(length(constr1.met)+length(constr2.met), size(b,2));
 for rr = 1:length(constr1.met)
     idx1 = find(ismember(basisSet.name,constr1.met{rr}));
     idx2 = find(ismember(basisSet.name,constr2.met{rr}));
@@ -108,6 +109,8 @@ for rr = 1:length(constr1.met)
     augmA(2*rr,idx2)    = lambda * norm(A(:,idx2),1);
     augmb(2*rr-1)       = lambda * norm(A(:,idx1),1) * ((r_u*(a_u+a_v))/(r_u+r_v));
     augmb(2*rr)         = lambda * norm(A(:,idx2),1) * ((r_v*(a_u+a_v))/(r_u+r_v));
+    J_augmb(2*rr-1)       = lambda * norm(A(:,idx1),1) * (r_u*a_v)/(r_u+r_v);
+    J_augmb(2*rr)         = lambda * norm(A(:,idx2),1) * (r_v*a_u)/(r_u+r_v);
 end
 
 end

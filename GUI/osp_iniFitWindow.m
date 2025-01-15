@@ -237,7 +237,12 @@ for t = 1 : gui.fit.Number %Loop over fits
                         CRLB    = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected}.CRLB;
                     end
                 case 'Osprey'
-                    RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,end}.ampl .* MRSCont.fit.scale{1,gui.controls.Selected};
+                    if strcmp(gui.fit.Names{t}, 'ref') || strcmp(gui.fit.Names{t}, 'w')
+                        RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,end}.ampl .* MRSCont.fit.scale{1,gui.controls.Selected};
+                    else
+                        RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,end}.ampl .* MRSCont.fit.scale{1,gui.controls.Selected};
+                        CRLB    = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,end}.CRLB;
+                    end
         end
         ph0 = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,end}.ph0;
         ph1 = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,end}.ph1;
@@ -255,7 +260,12 @@ for t = 1 : gui.fit.Number %Loop over fits
                         CRLB    = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{gui.controls.Selected}.CRLB;
                     end
                 case 'Osprey'
-                    RawAmpl = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                    if strcmp(gui.fit.Names{t}, 'ref') || strcmp(gui.fit.Names{t}, 'w')
+                        RawAmpl = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                    else
+                        RawAmpl = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                        CRLB    = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{gui.controls.Selected}.CRLB;
+                    end
         end
         ph0 = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{1,gui.controls.Selected}.ph0;
         ph1 = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{1,gui.controls.Selected}.ph1;
@@ -273,7 +283,12 @@ for t = 1 : gui.fit.Number %Loop over fits
                         CRLB    = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{gui.controls.Selected}.CRLB;
                     end
                 case 'Osprey'
-                    RawAmpl = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                    if strcmp(gui.fit.Names{t}, 'ref') || strcmp(gui.fit.Names{t}, 'w')
+                        RawAmpl = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                    else
+                        RawAmpl = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                        CRLB    = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{gui.controls.Selected}.CRLB;
+                    end
         end
         ph0 = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{1,gui.controls.Selected}.ph0;
         ph1 = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{1,gui.controls.Selected}.ph1;
@@ -318,7 +333,7 @@ for t = 1 : gui.fit.Number %Loop over fits
                 end
             end
              % Larger fonts for the results
-            resultsFontSize = 11;
+            resultsFontSize = 8;
     end
 
 
@@ -356,8 +371,13 @@ for t = 1 : gui.fit.Number %Loop over fits
                 for m = 1 : length(RawAmpl) %Names and Amplitudes
                     NameText = [NameText, [basisSetNames{m} ' \n']];
                     RawAmplText = [RawAmplText, [num2str(RawAmpl(m),'%1.2e') '\n']];
-                    if strcmp(MRSCont.opts.fit.method, 'LCModel')
-                        CRLBText = [CRLBText, [num2str(CRLB(m), '%i') '%%\n']];
+                    if isinf(CRLB(m))
+                        CRLBText = [CRLBText, [num2str(round(CRLB(m),1), '%1.3g') '\n']]; 
+                    else if CRLB(m) > 999
+                            CRLBText = [CRLBText, [num2str(Inf, '%1.3g') '\n']]; 
+                        else
+                            CRLBText = [CRLBText, [num2str(round(CRLB(m),1), '%1.3g') '%%\n']];
+                        end
                     end
 
                 end
@@ -373,11 +393,9 @@ for t = 1 : gui.fit.Number %Loop over fits
             gui.Results.FitTextAmpl  = uicontrol('Parent',gui.Results.FitText,'style','text',...
                 'FontSize', resultsFontSize, 'FontName', gui.font,'HorizontalAlignment', 'left', 'String', sprintf(RawAmplText),...
                 'BackgroundColor',gui.colormap.Background,'ForegroundColor', gui.colormap.Foreground);
-            if strcmp(MRSCont.opts.fit.method, 'LCModel')
-                gui.Results.FitTextCRLB  = uicontrol('Parent',gui.Results.FitText,'style','text',...
+            gui.Results.FitTextCRLB  = uicontrol('Parent',gui.Results.FitText,'style','text',...
                     'FontSize', resultsFontSize, 'FontName', gui.font,'HorizontalAlignment', 'left', 'String', sprintf(CRLBText),...
                     'BackgroundColor',gui.colormap.Background,'ForegroundColor', gui.colormap.Foreground);
-            end
         else %If water/reference data is fitted Raw amplitudes are calculated with regard to water
             if ~(strcmp(gui.fit.Style, 'ref') || strcmp(gui.fit.Style, 'w')) %Metabolite fit
                 switch MRSCont.opts.fit.method
@@ -395,8 +413,13 @@ for t = 1 : gui.fit.Number %Loop over fits
                 for m = 1 : length(RawAmpl) %Names and Amplitudes
                     NameText = [NameText, [basisSetNames{m} ' \n']];
                     RawAmplText = [RawAmplText, [num2str(RawAmpl(m),'%1.2e') '\n']];
-                    if strcmp(MRSCont.opts.fit.method, 'LCModel')
-                        CRLBText = [CRLBText, [num2str(CRLB(m), '%i') '%%\n']];
+                    if isinf(CRLB(m))
+                        CRLBText = [CRLBText, [num2str(round(CRLB(m),1), '%1.3g') '\n']]; 
+                    else if CRLB(m) > 999
+                            CRLBText = [CRLBText, [num2str(Inf, '%1.3g') '\n']]; 
+                        else
+                            CRLBText = [CRLBText, [num2str(round(CRLB(m),1), '%1.3g') '%%\n']];
+                        end
                     end
 
                 end
@@ -409,11 +432,9 @@ for t = 1 : gui.fit.Number %Loop over fits
                 gui.Results.FitTextAmpl  = uicontrol('Parent',gui.Results.FitText,'style','text',...
                     'FontSize', resultsFontSize, 'FontName', gui.font,'HorizontalAlignment', 'left', 'String', sprintf(RawAmplText),...
                     'BackgroundColor',gui.colormap.Background,'ForegroundColor', gui.colormap.Foreground);
-                if strcmp(MRSCont.opts.fit.method, 'LCModel')
-                    gui.Results.FitTextCRLB  = uicontrol('Parent',gui.Results.FitText,'style','text',...
+                gui.Results.FitTextCRLB  = uicontrol('Parent',gui.Results.FitText,'style','text',...
                         'FontSize', resultsFontSize, 'FontName', gui.font,'HorizontalAlignment', 'left', 'String', sprintf(CRLBText),...
                         'BackgroundColor',gui.colormap.Background,'ForegroundColor', gui.colormap.Foreground);
-                end
             else %Water/reference fit
                 NameText = ['Water: ' ];
                 RawAmplText = [num2str(RawAmpl,'%1.2e')];

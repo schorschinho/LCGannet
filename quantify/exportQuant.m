@@ -1,7 +1,7 @@
 function exportQuant(MRSCont,saveDestination)
 
 if ~strcmp(MRSCont.opts.fit.method, 'LCModel')
-    quants = {'amplMets','tCr','rawWaterScaled','CSFWaterScaled','TissCorrWaterScaled','AlphaCorrWaterScaled','AlphaCorrWaterScaledGroupNormed'};
+    quants = {'amplMets','tCr','rawWaterScaled','CSFWaterScaled','TissCorrWaterScaled','AlphaCorrWaterScaled','AlphaCorrWaterScaledGroupNormed','CRLB'};
 else
     quants = {'amplMets','tCr','rawWaterScaled','CSFWaterScaled','TissCorrWaterScaled','AlphaCorrWaterScaled','AlphaCorrWaterScaledGroupNormed','CRLB','h2oarea'};
 end

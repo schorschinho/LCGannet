@@ -276,7 +276,12 @@ switch fitMethod
 
 end
 
-fitParams.lb = MRSCont.opts.cosmetics.LB;
+if isfield(MRSCont.opts, 'cosmetics')
+    fitParams.lb = MRSCont.opts.cosmetics.LB;
+else
+    fitParams.lb = 0;
+    MRSCont.opts.cosmetics.Zoom = 1;
+end
 
 %%% 3. PREPARE LINES TO DISPLAY %%%
 % Extract data, ppm axes, fit, residual, baseline, and individual

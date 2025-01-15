@@ -35,8 +35,9 @@ function osp_updateFitWindow(gui)
                 gui.Results.FitTextAmpl = gui.Results.fit{gui.fit.Selected}.Children.Children(2);
                 gui.Results.FitTextNames = gui.Results.fit{gui.fit.Selected}.Children.Children(3);
             case 'Osprey'
-                gui.Results.FitTextAmpl = gui.Results.fit{gui.fit.Selected}.Children.Children(1);
-                gui.Results.FitTextNames = gui.Results.fit{gui.fit.Selected}.Children.Children(2);
+                gui.Results.FitTextCRLB = gui.Results.fit{gui.fit.Selected}.Children.Children(1);
+                gui.Results.FitTextAmpl = gui.Results.fit{gui.fit.Selected}.Children.Children(2);
+                gui.Results.FitTextNames = gui.Results.fit{gui.fit.Selected}.Children.Children(3);
         end
 
         gui.layout.EmptyFitPlot = 0;
@@ -92,7 +93,7 @@ function osp_updateFitWindow(gui)
                 nMets   = basisSet.nMets;
                 nMMLip  = basisSet.nMM;
                  % Larger fonts for the results
-                resultsFontSize = 11;
+                resultsFontSize = 9;
         end
 
         if ~((isfield(MRSCont.flags, 'isPRIAM') || isfield(MRSCont.flags, 'isMRSI')) &&  (MRSCont.flags.isPRIAM || MRSCont.flags.isMRSI))
@@ -105,7 +106,12 @@ function osp_updateFitWindow(gui)
                         CRLB    = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,subspectrum}.CRLB;
                     end
                 case 'Osprey'
-                    RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ampl .* MRSCont.fit.scale{1,gui.controls.Selected};
+                    if strcmp(gui.fit.Names{gui.fit.Selected}, 'ref') || strcmp(gui.fit.Names{gui.fit.Selected}, 'w')
+                        RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ampl .* MRSCont.fit.scale{1,gui.controls.Selected};
+                    else
+                        RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ampl .* MRSCont.fit.scale{1,gui.controls.Selected};
+                        CRLB    = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,subspectrum}.CRLB;
+                    end
             end
             ph0 = MRSCont.fit.results.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ph0;
             ph1 = MRSCont.fit.results.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ph1;
@@ -131,7 +137,12 @@ function osp_updateFitWindow(gui)
                         CRLB    = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{gui.controls.Selected,subspectrum}.CRLB;
                     end
                 case 'Osprey'
+                    if strcmp(gui.fit.Names{gui.fit.Selected}, 'ref') || strcmp(gui.fit.Names{gui.fit.Selected}, 'w')
+                        RawAmpl = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{basis,gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                    else
                     RawAmpl = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{basis,gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                    CRLB    = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{gui.controls.Selected,subspectrum}.CRLB;
+                    end
             end
             ph0 = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ph0;
             ph1 = MRSCont.fit.results{1,gui.controls.act_x}.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ph1;
@@ -157,7 +168,12 @@ function osp_updateFitWindow(gui)
                         CRLB    = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{gui.controls.Selected,subspectrum}.CRLB;
                     end
                 case 'Osprey'
-                    RawAmpl = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                    if strcmp(gui.fit.Names{gui.fit.Selected}, 'ref') || strcmp(gui.fit.Names{gui.fit.Selected}, 'w')
+                        RawAmpl = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                    else
+                        RawAmpl = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                        CRLB    = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{gui.controls.Selected,subspectrum}.CRLB;
+                    end
             end
             ph0 = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ph0;
             ph1 = MRSCont.fit.results{gui.controls.act_x,gui.controls.act_y}.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ph1;
@@ -199,8 +215,13 @@ function osp_updateFitWindow(gui)
                 for m = 1 : length(RawAmpl) %Names and Amplitudes
                     NameText = [NameText, [basisSetNames{m} ' \n']];
                     RawAmplText = [RawAmplText, [num2str(RawAmpl(m),'%1.2e') '\n']];
-                    if strcmp(MRSCont.opts.fit.method, 'LCModel')
-                        CRLBText = [CRLBText, [num2str(CRLB(m), '%i') '%%\n']];
+                    if isinf(CRLB(m))
+                        CRLBText = [CRLBText, [num2str(round(CRLB(m),1), '%1.3g') '\n']]; 
+                    else if CRLB(m) > 999
+                            CRLBText = [CRLBText, [num2str(Inf, '%1.3g') '\n']]; 
+                        else
+                            CRLBText = [CRLBText, [num2str(round(CRLB(m),1), '%1.3g') '%%\n']];
+                        end
                     end
 
                 end
@@ -211,9 +232,7 @@ function osp_updateFitWindow(gui)
                 set(gui.Results.fit{gui.fit.Selected}, 'Title', ['Raw Amplitudes']);
                 set(gui.Results.FitTextNames, 'String',sprintf(NameText));
                 set(gui.Results.FitTextAmpl, 'String',sprintf(RawAmplText));
-                if strcmp(MRSCont.opts.fit.method, 'LCModel')
-                    set(gui.Results.FitTextCRLB, 'String',sprintf(CRLBText));
-                end
+                set(gui.Results.FitTextCRLB, 'String',sprintf(CRLBText));
             else %If water/reference data is fitted Raw amplitudes are calculated with regard to water
                 if ~(strcmp(gui.fit.Style, 'ref') || strcmp(gui.fit.Style, 'w')) %Metabolite fit?
                     switch MRSCont.opts.fit.method
@@ -231,17 +250,20 @@ function osp_updateFitWindow(gui)
                     for m = 1 : length(RawAmpl) %Names and Amplitudes
                         NameText = [NameText, [basisSetNames{m} ' \n']];
                         RawAmplText = [RawAmplText, [num2str(RawAmpl(m),'%1.2e') '\n']];
-                        if strcmp(MRSCont.opts.fit.method, 'LCModel')
-                            CRLBText = [CRLBText, [num2str(CRLB(m), '%i') '%%\n']];
+                        if isinf(CRLB(m))
+                            CRLBText = [CRLBText, [num2str(round(CRLB(m),1), '%1.3g') '\n']]; 
+                        else if CRLB(m) > 999
+                                CRLBText = [CRLBText, [num2str(Inf, '%1.3g') '\n']]; 
+                            else
+                                CRLBText = [CRLBText, [num2str(round(CRLB(m),1), '%1.3g') '%%\n']];
+                            end
                         end
 
                     end
                     set(gui.Results.fit{gui.fit.Selected}, 'Title', ['Raw Water Ratio']);
                     set(gui.Results.FitTextNames, 'String',sprintf(NameText));
                     set(gui.Results.FitTextAmpl, 'String',sprintf(RawAmplText));
-                    if strcmp(MRSCont.opts.fit.method, 'LCModel')
-                        set(gui.Results.FitTextCRLB, 'String',sprintf(CRLBText));
-                    end
+                    set(gui.Results.FitTextCRLB, 'String',sprintf(CRLBText));
                 else %Water fit
                    NameText = ['Water: \t'];
                    RawAmplText = [num2str(RawAmpl,'%1.2e')];

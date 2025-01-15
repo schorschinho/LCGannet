@@ -167,19 +167,19 @@ for ss = 1 : SubSpectraFitted
     end
 end
 
-if strcmp(MRSCont.opts.fit.method, 'LCModel')
-    for ss = 1 : SubSpectraFitted
-        for kk = 1:MRSCont.nDatasets(1)
-            if  ~iscell(MRSCont.fit.results) %Is SVS %Is SVS
-                MRSCont.quantify.CRLB{1,kk,ss}.metab = MRSCont.fit.results.metab.fitParams{1,kk,ss}.CRLB';
-    
+for ss = 1 : SubSpectraFitted
+    for kk = 1:MRSCont.nDatasets(1)
+        if  ~iscell(MRSCont.fit.results) %Is SVS %Is SVS
+            MRSCont.quantify.CRLB{1,kk,ss}.metab = MRSCont.fit.results.metab.fitParams{1,kk,ss}.CRLB';
+            if strcmp(MRSCont.opts.fit.method, 'LCModel')
                 if qtfyH2O
                     MRSCont.quantify.h2oarea{1,kk,ss}.metab = MRSCont.fit.results.metab.fitParams{1,kk,ss}.h2oarea;
                 end
-            else %Is DualVoxel
-                MRSCont.quantify.CRLB{kk}.metab(:,1) = MRSCont.fit.results{1}.metab.fitParams{1,kk,ss}.CRLB';
-                MRSCont.quantify.CRLB{kk}.metab(:,2) = MRSCont.fit.results{2}.metab.fitParams{1,kk,ss}.CRLB';
-    
+            end
+        else %Is DualVoxel
+            MRSCont.quantify.CRLB{kk}.metab(:,1) = MRSCont.fit.results{1}.metab.fitParams{1,kk,ss}.CRLB';
+            MRSCont.quantify.CRLB{kk}.metab(:,2) = MRSCont.fit.results{2}.metab.fitParams{1,kk,ss}.CRLB';
+            if strcmp(MRSCont.opts.fit.method, 'LCModel')
                 if qtfyH2O
                     MRSCont.quantify.h2oarea{kk}.metab(:,1) = MRSCont.fit.results{1}.metab.fitParams{1,kk,ss}.h2oarea;
                     MRSCont.quantify.h2oarea{kk}.metab(:,2) = MRSCont.fit.results{2}.metab.fitParams{1,kk,ss}.h2oarea;
@@ -414,9 +414,9 @@ if qtfyAlpha
     [MRSCont] = osp_createTable(MRSCont,'AlphaCorrWaterScaled');
     [MRSCont] = osp_createTable(MRSCont,'AlphaCorrWaterScaledGroupNormed');
 end
-%Generate tables from LCModel specific outputs
+[MRSCont] = osp_createTable(MRSCont,'CRLB');
+%Generate tables from LCModel specific outputs   
 if strcmp(MRSCont.opts.fit.method, 'LCModel')
-    [MRSCont] = osp_createTable(MRSCont,'CRLB');
     if qtfyH2O
         [MRSCont] = osp_createTable(MRSCont,'h2oarea');
     end

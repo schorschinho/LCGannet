@@ -45,6 +45,7 @@ MRSCont.opts.fit.bLineKnotSpace     = 0.4;              % Baseline spline knot s
 MRSCont.opts.fit.fitMM              = 1;                % Add MM and lipid basis functions to basis set? Default: 1.
 MRSCont.opts.fit.coMM3              = 'none';           % Add co-edited MM3 peak model for GABA editing? Default: none.
 MRSCont.opts.fit.FWHMcoMM3          = 14;               % FWHM [Hz] of the co-edited peak Default: 14 Hz.
+MRSCont.opts.fit.RegParLS           = 1000;             % Regularization parameter of arbitrary lineshape conv kernel
 MRSCont.opts.ECC.raw                = 1;                % Do ECC for all metabolite spectra.
 MRSCont.opts.ECC.mm                 = 1;                 % Do ECC for all metabolite-nulled spectra.
 MRSCont.opts.cosmetics.LB           = 0;                % Do cosmetic LB

@@ -119,11 +119,23 @@ lb  = [lb_ph0; lb_ph1; lb_gaussLB; lb_freqShift; lb_amplMets; lb_beta_j];
 ub  = [ub_ph0; ub_ph1; ub_gaussLB; ub_freqShift; ub_amplMets; ub_beta_j];
 
 % Set up and run the non-linear solver.
-opts.Display    = 'off';
-opts.TolFun     = 1e-6;
-opts.TolX       = 1e-6;
-opts.MaxIter    = 400;
-[x] = LevenbergMarquardt(@(x) fit_Osprey_PrelimReduced_Model(x, inputData, inputSettings),x0,lb,ub,opts);
+%%%%%%% Old call for Dentler LM start
+    % opts.Display    = 'off';
+    % opts.TolFun     = 1e-6;
+    % opts.TolX       = 1e-6;
+    % opts.MaxIter    = 400;
+    % [x] = LevenbergMarquardt(@(x) fit_Osprey_PrelimReduced_Model(x, inputData, inputSettings),x0,lb,ub,opts);
+%%%%%%% Old call for Dentler LM end
+
+opts = optimoptions('lsqnonlin', ...
+                    'Algorithm','levenberg-marquardt', ...      % Use LM
+                    'SpecifyObjectiveGradient',false,...        % Use analytic jacobian
+                    'CheckGradients',false, ...                 % Check gradient
+                    'FiniteDifferenceType','central', ...       % for numerically calculated jacobian only
+                    'MaxIterations',1000, ...                   % Iterations
+                    'Display','none');                       % Display no iterations
+[x,~,~,~,~,~,~] = lsqnonlin(@(x) fit_Osprey_PrelimReduced_Model(x, inputData, inputSettings), x0, lb, ub, opts ); % Run solver
+
 
 
 %%% 4. PERFORM FINAL COMPUTATION OF LINEAR PARAMETERS %%%
@@ -250,23 +262,36 @@ b           = data;
 fcn     = @(x) norm( AB*x - b)^2;
 AtA     = AB'*AB; Ab = AB'*b;
 grad    = @(x) 2*( AtA*x - Ab );
+hess    = @(x) 2*AtA;
 
 % Define bounds. The lower bounds for the metabolite/MM/lipid basis
 % functions are zero. All other parameters are supposed to be unbound.
 l = [zeros(nMets,1);    -inf*ones(nSplines,1)];
 u = [inf*ones(nMets,1);  inf*ones(nSplines,1)];
 
+%%%%%%% Old call for lbfgsb start
 % Prepare the function wrapper
-fun     = @(x)fminunc_wrapper( x, fcn, grad);
-% Request very high accuracy:
-opts    = struct( 'factr', 1e4, 'pgtol', 1e-8, 'm', 10);
-opts.printEvery     = 0;
+    % fun     = @(x)fminunc_wrapper( x, fcn, grad);
+    % % Request very high accuracy:
+    % opts    = struct( 'factr', 1e4, 'pgtol', 1e-8, 'm', 10, 'max_its', 750);
+    % opts.printEvery     = 0;
+    % 
+    % % Run the algorithm:
+    % % Feed initial guess from the input parameters
+    % opts.x0 = ampl;
+    % [ampl, ~, ~] = lbfgsb(fun, l, u, opts );
+%%%%%%% Old call for lbfgsb end
 
-% Run the algorithm:
-% Feed initial guess from the input parameters
-opts.x0 = ampl;
-[ampl, ~, ~] = lbfgsb(fun, l, u, opts );
+% Prepare the function wrapper
+fun     = @(x)fminunc_wrapper( x, fcn, grad, hess);
 
+opts = optimoptions("fmincon","SpecifyObjectiveGradient",true,'Algorithm','trust-region-reflective',...
+    'SpecifyObjectiveGradient',true,'Display','none',...
+    'HessianFcn','objective',MaxFunctionEvaluations=Inf,MaxIterations=750,...
+    StepTolerance=1e-8,FunctionTolerance=1e-12,OptimalityTolerance=1e-12);
+
+[ampl] =...
+    fmincon(fun, ampl, [],[],[],[],l,u,[],opts);
 
 %%% 4. CREATE OBJECTIVE FUNCTION
 % The objective function to be minimized by the non-linear least squares
@@ -377,23 +402,36 @@ b           = data;
 fcn     = @(x) norm( AB*x - b)^2;
 AtA     = AB'*AB; Ab = AB'*b;
 grad    = @(x) 2*( AtA*x - Ab );
+hess    = @(x) 2*AtA;
 
 % Define bounds. The lower bounds for the metabolite/MM/lipid basis
 % functions are zero. All other parameters are supposed to be unbound.
 l = [zeros(nMets,1);    -inf*ones(nSplines,1)];
 u = [inf*ones(nMets,1);  inf*ones(nSplines,1)];
 
+%%%%%%% Old call for lbfgsb start
 % Prepare the function wrapper
-fun     = @(x)fminunc_wrapper( x, fcn, grad);
-% Request very high accuracy:
-opts    = struct( 'factr', 1e4, 'pgtol', 1e-8, 'm', 10);
-opts.printEvery     = 0;
+    % fun     = @(x)fminunc_wrapper( x, fcn, grad);
+    % % Request very high accuracy:
+    % opts    = struct( 'factr', 1e4, 'pgtol', 1e-8, 'm', 10, 'max_its', 750);
+    % opts.printEvery     = 0;
+    % 
+    % % Run the algorithm:
+    % % Feed initial guess from the input parameters
+    % opts.x0 = ampl;
+    % [ampl, ~, ~] = lbfgsb(fun, l, u, opts );
+%%%%%%% Old call for lbfgsb end
 
-% Run the algorithm:
-% Feed initial guess from the input parameters
-opts.x0 = ampl;
-[ampl, ~, ~] = lbfgsb(fun, l, u, opts );
+% Prepare the function wrapper
+fun     = @(x)fminunc_wrapper( x, fcn, grad, hess);
 
+opts = optimoptions("fmincon","SpecifyObjectiveGradient",true,'Algorithm','trust-region-reflective',...
+    'SpecifyObjectiveGradient',true,'Display','none',...
+    'HessianFcn','objective',MaxFunctionEvaluations=Inf,MaxIterations=750,...
+    StepTolerance=1e-8,FunctionTolerance=1e-12,OptimalityTolerance=1e-12);
+
+[ampl] =...
+    fmincon(fun, ampl, [],[],[],[],l,u,[],opts);
 
 %%% 4. CREATE OUTPUT %%%
 % Return the final fit parameters

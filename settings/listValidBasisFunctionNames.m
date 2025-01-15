@@ -99,6 +99,7 @@ switch type
             {'MMexp','Mac', 'MMmeas'},... % Typical names for measured MM
             'MM_PRESS_PCC',...
             'MM_PRESS_CSO',...
+            'MM3co'
             };
 
 end

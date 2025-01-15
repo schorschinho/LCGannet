@@ -80,26 +80,6 @@ convolutionRange    = RFWHM * refFWHM/2;
 PPMINC              = abs(dataToFit.ppm(1) - dataToFit.ppm(2));
 % Calculate number of points
 N_s                 = round(convolutionRange/PPMINC);
-%%% OPTION A - CREATE INITIAL GUESS FROM CR SINGLET %%%
-% % Apply the linebroadening parameters to the Cr singlet in order to obtain
-% % an initial lineshape model
-% % Find the creatine basis function
-% idx_Cr          = find(strcmp(resBasisSet.name,'Cr'));
-% if isempty(idx_Cr)
-%     error('No basis function with nametag ''Cr'' found! Abort!');
-% end
-% t = resBasisSet.t;
-% CrFID = resBasisSet.fids(:,idx_Cr,1) .* exp(-gaussLB^2.*t.*t)' .* exp(-lorentzLB(idx_Cr).*t)';    
-% CrSPEC = fftshift(fft(CrFID,[],1),1);
-% % Cut out N_s points around the maximum
-% [~, maxCr_idx] = max(abs(real(CrSPEC)));
-% if mod(N_s,2) == 0
-%     lineShape = real(CrSPEC(maxCr_idx-N_s/2:maxCr_idx+N_s/2));
-% else
-%     lineShape = real(CrSPEC(maxCr_idx-floor(N_s/2):maxCr_idx+ceil(N_s/2)));
-% end
-%%% OPTION B - CREATE INITIAL GUESS AS DELTA FUNCTION %%%
-% Initialize as delta function
 if mod(N_s,2) == 0
     N_s = N_s - 1; % make odd number
 end
@@ -122,61 +102,39 @@ x0          = [ph0; ph1; gaussLB; lorentzLB; freqShift; ampl; lineShape];
 
 
 %%% 3. CLL NON-LINEAR SOLVER %%%
-% Run the non-linear solver to optimize the non-linear parameters. At each
-% iteration of the non-linear least squares solver, the linear parameters
-% are calculated separately (similar to the VARiable PROjection algorithm).
-%
-% We're using a Levenberg-Marquardt implementation for the non-linear 
-% problem that allows us to impose hard box constraints on the non-linear
-% parameters, keeping them within reasonable limits.
-% (c) Alexander Drentler
-% https://www.mathworks.com/matlabcentral/fileexchange/53449-levenberg-marquardt-toolbox
-
-% Initial regularization parameter close to zero
-regParameter = 2e-2;
+% Run the non-linear solver to optimize the non-linear parameters.
 % Pack everything up into structs to pass it on to the solver.
 % ... data:
 inputData.dataToFit     = dataToFit;
 inputData.resBasisSet   = resBasisSet;
 inputData.splineArray   = splineArray;
-% Get an estimate for the standard deviation of the noise
-% This is to calculate a Q factor, but need to normalize this noise value
-% here - leave alone for now
-if max(dataToFit.ppm > 10)
-    noiseRange = (dataToFit.ppm > 9);
-else
-    noiseRange = (dataToFit.ppm < -2);
-end
-dataNoise   = real(dataToFit.specs(noiseRange,1));
-dataNoise   = detrend(dataNoise);
-stdNoise    = std(dataNoise);
-inputData.stdNoise      = stdNoise;
+
 % ... settings:
 inputSettings.fitRangePPM   = fitRangePPM;
-inputSettings.regParameter  = regParameter;
 inputSettings.EXT2          = EXT2';
 inputSettings.SDT2          = SDT2';
 inputSettings.SDSH          = SDSH';
 inputSettings.GAP = GAP;
+inputSettings.RegParLS = dataToFit.RegParLS;
 
 % Set the hard box constraints for the parameters
 nMets   = resBasisSet.nMets;
 nMM     = resBasisSet.nMM;
-lb_ph0              = -45; 
-ub_ph0              = +45; % Zero order phase shift [deg]
-lb_ph1              = -20; 
-ub_ph1              = +20; % First order phase shift [deg/ppm]
+lb_ph0              = -15; 
+ub_ph0              = +15; % Zero order phase shift [deg]
+lb_ph1              = -10; 
+ub_ph1              = +10; % First order phase shift [deg/ppm]
 lb_gaussLB          = 0; 
 ub_gaussLB          = sqrt(5000); % Gaussian dampening [Hz]
 lb_lorentzLB_mets   = zeros(nMets, 1); 
 ub_lorentzLB_mets   = 10.0 * ones(nMets, 1); % Lorentzian dampening [Hz] - Metabolites
 lb_lorentzLB_MM     = zeros(nMM, 1); 
 ub_lorentzLB_MM     =  100 * ones(nMM, 1); % Lorentzian dampening [Hz] - MM/Lipids
-lb_freqShift_mets   = -4.0 * ones(nMets,1); 
-ub_freqShift_mets   = +4.0 * ones(nMets,1); % Frequency shift [Hz] - Metabolites
-lb_freqShift_MM     = -6.5 * ones(nMM,1); 
-ub_freqShift_MM     = +6.5 * ones(nMM,1); % Frequency shift [Hz] - MM/Lipids
-lb_ampl             = -Inf * ones(nMets+nMM+size(splineArray,2),1); 
+lb_freqShift_mets   = -15.0 * ones(nMets,1); 
+ub_freqShift_mets   = +15.0 * ones(nMets,1); % Frequency shift [Hz] - Metabolites
+lb_freqShift_MM     = -15.0 * ones(nMM,1); 
+ub_freqShift_MM     = +15.0 * ones(nMM,1); % Frequency shift [Hz] - MM/Lipids
+lb_ampl             = cat(1,zeros(nMets+nMM,1),-Inf*ones(size(splineArray,2),1)); 
 ub_ampl             = +Inf * ones(nMets+nMM+size(splineArray,2),1); % Amplitude for metabolite and spline basis functions
 lb_lineShape        = -Inf * ones(size(lineShape));
 ub_lineShape        = +Inf * ones(size(lineShape)); % Lineshape coefficients
@@ -186,22 +144,46 @@ lb = [lb_ph0; lb_ph1; lb_gaussLB; lb_lorentzLB_mets; lb_lorentzLB_MM; lb_freqShi
 ub = [ub_ph0; ub_ph1; ub_gaussLB; ub_lorentzLB_mets; ub_lorentzLB_MM; ub_freqShift_mets; ub_freqShift_MM; ub_ampl; ub_lineShape];
 
 
-% Set up and run the non-linear solver.
-opts.Display    = 'off';
-opts.TolFun     = 1e-6;
-opts.TolX       = 1e-6;
-opts.MaxIter    = 400;
-% opts.Jacobian   = 'on';
-% opts.Broyden_updates=2;  
-[x,Res,~,~,~,~,~,J] = LevenbergMarquardt(@(x) fit_Osprey_PrelimStep2_Model(x, inputData, inputSettings), x0, lb, ub, opts);
+inputSettings.NoiseSD = dataToFit.NoiseSD;
+
+opts = optimoptions('lsqnonlin', ...
+                    'Algorithm','levenberg-marquardt', ...      % Use LM
+                    'SpecifyObjectiveGradient',true,...        % Use analytic jacobian
+                    'CheckGradients',false, ...                 % Check gradient
+                    'FiniteDifferenceType','central', ...       % for numerically calculated jacobian only
+                    'MaxIterations',1000, ...                   % Iterations
+                    'FunctionTolerance',1e-6,...                1e-6
+                    'OptimalityTolerance',1e-4,...              1e-4
+                    'StepTolerance', 1e-6,...                   1e-6
+                    'Display','none');                       % Display no iterations
+
+inputSettings.sc = 0;                                           % Don't use distribution based soft constraints 
+[x,~,~,~,~,~,~] = lsqnonlin(@(x) fit_Osprey_PrelimStep2_Model(x, inputData, inputSettings), x0, lb, ub, opts ); % Run solver
+
+inputSettings.sc = 1;                                         % Run final iteration with distribution based soft constraints
+lb(1:2*nBasisFcts+3) = x(1:2*nBasisFcts+3);
+lb(3*nBasisFcts+4+size(splineArray,2):end) = x(3*nBasisFcts+4+size(splineArray,2):end);
+x(2*nBasisFcts+4:3*nBasisFcts+3+size(splineArray,2))=zeros(nBasisFcts+nSplines,1);
+ub(1:2*nBasisFcts+3) = x(1:2*nBasisFcts+3);
+ub(3*nBasisFcts+4+size(splineArray,2):end) = x(3*nBasisFcts+4+size(splineArray,2):end);
+[x,~,~,~,~,~,J] = lsqnonlin(@(x) fit_Osprey_PrelimStep2_Model(x, inputData, inputSettings), x, lb, ub, opts ); % Run solver with soft constraints
+fitParamsFinal.ph0          = x(1);
+fitParamsFinal.ph1          = x(2);
+fitParamsFinal.gaussLB      = x(3);
+fitParamsFinal.lorentzLB    = x(4:nBasisFcts+3);
+fitParamsFinal.freqShift    = x(nBasisFcts+4:2*nBasisFcts+3);
+fitParamsFinal.ampl         = x(2*nBasisFcts+4:3*nBasisFcts+3);
+fitParamsFinal.beta_j       = x(3*nBasisFcts+4:3*nBasisFcts+3+size(splineArray,2));
+fitParamsFinal.lineShape    = x(3*nBasisFcts+4+size(splineArray,2):end);
 
 
 %%% 4. PERFORM FINAL COMPUTATION OF LINEAR PARAMETERS %%%
 % After the non-linear optimization is finished, we need to perform the
 % final evaluation of the linear parameters (i.e. the amplitudes and
 % baseline parameters).
-[fitParamsFinal] = fit_Osprey_PrelimStep2_finalLinear(x, inputData, inputSettings);
-fitParamsFinal.Res = Res;
+% [fitParamsFinal,J] = fit_Osprey_PrelimStep2_finalLinear(x, inputData, inputSettings);
+% Return the final fit parameters
+
 fitParamsFinal.J = J;
 
 %%% 5. CREATE OUTPUT %%%
@@ -225,9 +207,6 @@ function [F,J] = fit_Osprey_PrelimStep2_Model(x, inputData, inputSettings)
 %   every iteration of the non-linear least-squares optimization. The
 %   parameters are applied to the basis set.
 %
-%   Then, a limited-memory Broyden-Fletcher-Goldfarb-Shanno solver allowing
-%   for boxed constraints is applied to determine the optimal amplitudes of 
-%   the linear parameters to the current set of non-linear parameters.
 %
 %   The linear parameters are usually the amplitudes for the basis
 %   functions and cubic baseline splines.
@@ -237,7 +216,7 @@ function [F,J] = fit_Osprey_PrelimStep2_Model(x, inputData, inputSettings)
 %   solver.
 %
 %   USAGE:
-%       F = fit_LCModel_PrelimStep2_Model(x, inputData, inputSettings)
+%       F,J = fit_LCModel_PrelimStep2_Model(x, inputData, inputSettings)
 %
 %   INPUTS:
 %       x           = Vector providing the last set of parameters coming
@@ -250,6 +229,7 @@ function [F,J] = fit_Osprey_PrelimStep2_Model(x, inputData, inputSettings)
 %       F           = Difference between data and model. This is the
 %                       objective to be least-squares-optimized by the 
 %                       non-linear solver.
+%       J           = Jacobian matrix
 
 
 %%% 1. UNPACK THE INPUT %%%
@@ -257,10 +237,8 @@ function [F,J] = fit_Osprey_PrelimStep2_Model(x, inputData, inputSettings)
 dataToFit     = inputData.dataToFit;
 resBasisSet   = inputData.resBasisSet;
 splineArray   = inputData.splineArray;
-stdNoise      = inputData.stdNoise;
 % ... settings:
 fitRangePPM   = inputSettings.fitRangePPM;
-regParameter  = inputSettings.regParameter;
 EXT2          = inputSettings.EXT2;
 SDT2          = inputSettings.SDT2;
 SDSH          = inputSettings.SDSH;
@@ -278,7 +256,7 @@ freqShift   = x(nBasisFcts+4:2*nBasisFcts+3); % Frequency shift [Hz] for each ba
 ampl        = x(2*nBasisFcts+4:3*nBasisFcts+3+nSplines); % Amplitudes
 lineShape   = x(3*nBasisFcts+4+nSplines:end); % Lineshape coefficients
 % Normalize the lineshape
-lineShape = lineShape/sum(lineShape);
+lineShapeNorm = lineShape/sum(lineShape);
 
 
 %%% 2. APPLY THE NON-LINEAR PARAMETERS %%%
@@ -290,6 +268,7 @@ for ii=1:nBasisFcts
     resBasisSet.fids(:,ii) = resBasisSet.fids(:,ii) * exp(1i*ph0);
 end
 resBasisSet.specs = fftshift(fft(resBasisSet.fids,[],1),1);
+resBasisSetWithTDOps = resBasisSet;
 
 % Run the frequency-domain operations on the basis functions
 % (first order phase correction)
@@ -312,19 +291,32 @@ B = B .* exp(1i*ph1*multiplier);
 B = [real(B)];
 
 
-%%% 3. SET UP THE LINEAR SOLVER %%%
-% To calculate the linearly occurring amplitude parameters for the
-% metabolite/MM/lipid basis functions and the baseline basis functions, we
-% call the linear L-BFGS-B algorithm.
-% (c) Stephen Becker
-% (https://www.mathworks.com/matlabcentral/fileexchange/35104-lbfgsb-l-bfgs-b-mex-wrapper)
-
+%%% 3. SET UP THE SOFT CONSTRAINTS %%%
 % Convolve the lineshape with the metabolite basis functions only
 % (NOT the macromolecules or lipids or baseline splines).
 A = real(resBasisSet.specs);
 for kk = 1:resBasisSet.nMets
-    A(:,kk) = conv(A(:,kk), lineShape, 'same');
+    A(:,kk) = conv(A(:,kk), lineShapeNorm, 'same');
 end
+
+e = ones(length(lineShape),1);                        % Create single column vector 
+RegMatrixD = spdiags([e -2*e e],-1:1,length(lineShape),length(lineShape));   % Create second differencing matrix
+RegMatrixD = full(RegMatrixD);                        % Convert sparse representation to full matrix
+RegParLS = inputSettings.RegParLS;
+
+for ii=1:length(lineShape)
+    u = lineShape;
+    der_u = zeros(length(lineShape), 1);  %du/dc_n
+    der_u(ii) = 1;                        %du/dc_n    
+    v = sum(lineShape);
+    der_v = 1;                            %dv/dc_n
+
+    der_lineshape_wrt_c_n(:,ii) = (der_u * v - u)/(v^2); % dg(c_n)/dc_n
+end
+RegMatrixJ  = zeros(length(x),length(x));
+RegMatrixJ(3+3*nBasisFcts+1+nSplines:3+3*nBasisFcts+length(lineShape)+nSplines,3+3*nBasisFcts+1+nSplines:3+3*nBasisFcts+length(lineShape)+nSplines) = sqrt(RegParLS)*RegMatrixD*der_lineshape_wrt_c_n;
+RegMatrix  = zeros(length(x),1);
+RegMatrix(3+3*nBasisFcts+1+nSplines:3+3*nBasisFcts+length(lineShape)+nSplines,1) = sqrt(RegParLS)*RegMatrixD*lineShapeNorm;
 
 % Concatenate the metabolite/MM/lipid basis functions and the baseline basis
 % functions 
@@ -334,283 +326,209 @@ dataToFit   = op_freqrange(dataToFit, fitRangePPM(1), fitRangePPM(end),length(sp
 data        = real(dataToFit.specs);
 b           = data;
 
-% The function we want to minimize is the sum of squares of the residual
-fcn     = @(x) norm( AB*x - b)^2;
-AtA     = AB'*AB; Ab = AB'*b;
-grad    = @(x) 2*( AtA*x - Ab );
 
-% Define bounds. The lower bounds for the metabolite/MM/lipid basis
-% functions are zero. All other parameters are supposed to be unbound.
-l = [zeros(nMets+nMM,1);    -inf*ones(nSplines,1)];
-u = [inf*ones(nMets+nMM,1);  inf*ones(nSplines,1)];
-
-% Prepare the function wrapper
-fun     = @(x)fminunc_wrapper( x, fcn, grad);
-% Request very high accuracy:
-opts    = struct( 'factr', 1e4, 'pgtol', 1e-8, 'm', 10);
-opts.printEvery     = 0;
-
-% Run the algorithm:
-% Feed initial guess from the input parameters
-opts.x0 = ampl;
-[ampl, ~, ~] = lbfgsb(fun, l, u, opts );
-
-
-%%% 4. ADD SOFT CONSTRAINTS ON AMPLITUDES %%%
-% To impose soft constraints on the amplitudes, we can augment the problem
-% with additional rows in the equation system. This is done in the function
-% fit_createSoftConstrOsprey.
-% (see Wilson et al., MRM 2011)
-[augmA, augmb] = fit_createSoftConstrOsprey(resBasisSet, AB, b, ampl);
-A_augB  = [AB; augmA];
-b_aug   = [b; augmb];
-
-% Now, run the L-BFGS-B algorithm again with the augmented equation system
-% The function we want to minimize is the sum of squares of the residual
-fcn     = @(x) norm( A_augB*x - b_aug)^2;
-AtA     = A_augB'*A_augB; A_augb = A_augB'*b_aug;
-grad    = @(x) 2*( AtA*x - A_augb );
-% Prepare the function wrapper
-fun     = @(x)fminunc_wrapper(x, fcn, grad);
-% Run the algorithm:
-% Feed initial guess from the input parameters
-opts.x0 = ampl;
-[ampl, ~, ~] = lbfgsb( fun, l, u, opts );
-
+if inputSettings.sc
+    [penalty,penaltyJac] = fit_createSoftConstrOspreyDistributionBased(resBasisSet,ampl,length(x),nBasisFcts);
+else
+    penalty =[];
+    penaltyJac = [];
+end
 
 %%% 4. CREATE OBJECTIVE FUNCTION
 % The objective function to be minimized by the non-linear least squares
 % solver is the fit residual.
-%
-% The LCModel algorithm wants to minimize not only the sum of squares
-% between the data and the model, but imposes regularization on several
-% parameters.
-% Therefore, we have to reconstruct the fit spectrum from the parameters we
-% derived, and then calculate the sum of squares ourselves, in addition to
-% the penalty terms.
-% For the last step of the preliminary analysis, this is done without any
-% regularization at all.
-
-% Calculate the sum of squares
-SOS = sum((data - AB*ampl).^2);
-
-% Calculate the baseline regularization penalty term
-% Extract the baseline coefficients
-beta_j    = ampl(size(A,2)+1:end);
-% Create the analytical regularizor matrix specified in Eq (3.13) in the
-% original publication of the CONTIN algorithm behind LCModel:
-% Provencher, Comp Phys Comm 27:213-227 (1982)
-% First, create a banded Toeplitz matrix
-n = length(beta_j);
-e = ones(n,1);
-K = spdiags([1*e 0*e -9*e 16*e -9*e 0*e 1*e], -3:3, n, n);
-K = full(K);
-% Then, correct the first two and last two lines according to the above
-% paper
-K(1, 1:4)               = [8 -6 0 1];
-K(2, 1:5)               = [-6 14 -6 0 1];
-K(end-1, end-4:end)     = [1 0 -6 14 -6];
-K(end, end-3:end)       = [1 0 -6 8];
-% Bring in the factor of 1/6
-K = 1/6 .* K;
-% Additionally, bring in the geometric factor delta, which is the knot
-% spacing, ie delta = range/(number of segments).
-% !!! THIS ISN'T CLEARLY UNDERSTOOD YET !!!
-normalizationFactor = 1/(size(splineArray,1)/(size(splineArray,2)-1))^3;
-% Final regularization penalty
-regB = norm(regParameter*sqrtm(full(K))*beta_j*1/(mean(beta_j)))^2;
-
-% Calculate the penalty term for the Lorentzian linebroadening and
-% frequency shifts
-penaltyLBFS = sum((lorentzLB - EXT2).^2./(SDT2).^2 + (freqShift.^2)./(SDSH.^2));
 
 % Return the loss function
-% F = 1/sqrt(stdNoise) * SOS + regB + penaltyLBFS; 
-% This would be the classic LCModel function to be minimized
-% For the preliminary step, just return the functional without any regularization
 F = (data - AB*ampl);
-
-
 if ~isempty(GAP)
-%      data =  vertcat(data(ppm_ax<GAP(1)),data(ppm_ax>GAP(2)));
-%      fit = AB*ampl;
-%      fit =  vertcat(fit(ppm_ax<GAP(1)),fit(ppm_ax>GAP(2)));
      F = vertcat(F(ppm_ax<GAP(1)),F(ppm_ax>GAP(2)));   
 end
-%%% 5. CALCULATE ANALYTIC JACOBIAN 
-% j = sqrt(-1); % i
-% 
-% % Model function
-% % Y(f) = exp(i(ph0+ph1(f))) * (sum(betaj * B) + sum(amp conv(M, lineshape))
-% % with M = fft(basisSet.fids .* exp(-1i*freqShift(ii).*t)' .* exp(-lorentzLB(ii).*t)' .* exp(-gaussLB.*t.*t)')
-% % The derivatives are 'easier' in the time-domain, so we will stick with
-% % the FIDS for the calculations
-% 
-% % dimensions and number of matrix entries
-% [npoints,~] = size(resBasisSet.fids); %number of points and number of basis functions
-% t = resBasisSet.t;
-% 
-% % % Apply phasing to the spline basis functions
-% Acomp = resBasisSet.specs;
-% for kk = 1:resBasisSet.nMets
-%     Acomp(:,kk) = conv(Acomp(:,kk), lineShape, 'same');
-% end
-% 
-% Bcomp = [splineArray(:,:,1) + 1i*splineArray(:,:,2)];
-% Bcomp = Bcomp  * exp(1i*ph0);
-% Bcomp = Bcomp .* exp(1i*ph1*multiplier);
-% 
-% ABcomp = [Acomp Bcomp];
-% completeFit = ABcomp*ampl;
-% 
-% 
-% %Computation of the Jacobian
-% % The size is MxN with M (number of estimated parameters) and N (number of
-% % points).
-% %Store the indices of the different partial derivatives 
-% ph0Col = 1;
-% ph1Col = 2;
-% gaussLBCol = 3 * ones(1,nMets + nMM);
-% lorentzLBCol = gaussLBCol(end) + 1 : (gaussLBCol(1) + nMets + nMM);
-% freqShiftCol = lorentzLBCol(end) + 1 : (lorentzLBCol(end) + nMets + nMM);
-% AmplCol = freqShiftCol(end) + 1 : (freqShiftCol(end) + nMets + nMM);
-% SplineAmplCol = AmplCol(end) + 1 : (AmplCol(end) + size(splineArray,2));
-% lineshapeCol = SplineAmplCol(end)+1 : SplineAmplCol(end) + length(lineShape);
-% 
-% nparams = 3 + length(lorentzLBCol) + length(freqShiftCol) + length(AmplCol) + length(SplineAmplCol) + length(lineshapeCol);
-% 
-% J = zeros(npoints,nparams);
-% Jfd = zeros(npoints,nparams);
-% 
-% 
-% %derivative wrt ph0
-% % for ii = 1:nMets
-% %     col = ph0Col(ii);
-% %     J(:,col) = J(:,col)+j*basisSet.fids(:,ii)*ampl(ii);
-% %     Jfd(:,col) = fftshift(fft(J(:,col),[],1),1);
-% %     Jfd(:,col) = conv(Jfd(:,col), lineShape, 'same') + B * beta_j;    
-% % end
-% Jfd(:,1) = j * completeFit;
-% 
-% %derivative wrt ph1
-% % for ii = 1:nBasisFcts
-% %     col = ph1Col(ii);
-% %     J(:,col) = J(:,col)+j*basisSet.fids(:,ii)*ampl(ii);
-% %     Jfd(:,col) = fftshift(fft(J(:,col),[],1),1);
-% %     Jfd(:,col) = conv(Jfd(:,col), lineShape, 'same') + B * beta_j;    
-% % end
-% Jfd(:,2) = j *  completeFit .* multiplier;
-% 
-% %derivative wrt gaussLB
-% for ii = 1:nBasisFcts
-%     if ii <= nMets % Sum up derivarives of all metabolite functions first
-%         col = gaussLBCol(ii);
-%         J(:,col) = J(:,col)-resBasisSet.fids(:,ii).*(t.^2)';
-%         Jfd(:,col) = Jfd(:,col) +  conv(fftshift(fft(-resBasisSet.fids(:,ii).*(t.^2)',[],1),1), lineShape, 'same')*ampl(ii); 
-%     else  % No convolution is applied to the MM functions
-%         J(:,col) = J(:,col)-resBasisSet.fids(:,ii).*(t.^2)';
-%         Jfd(:,col) = Jfd(:,col) +  fftshift(fft(-resBasisSet.fids(:,ii).*(t.^2)',[],1),1)*ampl(ii);             
-%     end
-% end
-% 
-% 
-% %derivative wrt lorentzLB
-% for ii = 1:nBasisFcts
-%     if ii <= nMets % Sum up derivarives of all metabolite functions first
-%         col = lorentzLBCol(ii);
-%         J(:,col) = J(:,col)-resBasisSet.fids(:,ii).*t';
-%         Jfd(:,col) = Jfd(:,col) +  conv(fftshift(fft(J(:,col),[],1),1), lineShape, 'same')*ampl(ii);  
-%     else % No convolution is applied to the MM functions
-%         col = lorentzLBCol(ii);
-%         J(:,col) = J(:,col)-resBasisSet.fids(:,ii).*t';
-%         Jfd(:,col) = Jfd(:,col) +  fftshift(fft(J(:,col),[],1),1)*ampl(ii);         
-%     end
-% end
-% 
-% %derivative wrt freqShift
-% for ii=1:nBasisFcts
-%     if ii <= nMets  % Sum up derivarives of all metabolite functions first
-%         col = freqShiftCol(ii);
-%         J(:,col) = J(:,col)-j*resBasisSet.fids(:,ii).*t';
-%         Jfd(:,col) = Jfd(:,col) +  conv(fftshift(fft(J(:,col),[],1),1), lineShape, 'same')*ampl(ii);  
-%     else % No convolution is applied to the MM functions
-%         col = freqShiftCol(ii);
-%         J(:,col) = J(:,col)-j*resBasisSet.fids(:,ii).*t';
-%         Jfd(:,col) = Jfd(:,col) + fftshift(fft(J(:,col),[],1),1)*ampl(ii);          
-%     end
-% end
-% 
-% % derivative  wrt basis set  amplitudes 
-% for ii=1:nBasisFcts
-%     if ii <= nMets
-%         col = AmplCol(ii);
-%         J(:,col) = resBasisSet.fids(:,ii);
-%         Jfd(:,col) = conv(fftshift(fft(J(:,col),[],1),1), lineShape, 'same');
-%     else
-%         col = AmplCol(ii);
-%         J(:,col) = resBasisSet.fids(:,ii);
-%         Jfd(:,col) = fftshift(fft(J(:,col),[],1),1);    
-%     end
-% end
-% 
-% 
-% % derivative wrt spline amplitudes
-% for ii=1:length(SplineAmplCol)
-%     col = SplineAmplCol(ii);
-%     Jfd(:,col) = Jfd(:,col)+Bcomp(:,ii);
-% end
-% 
-% 
-% %derivative wrt lineshape 
-% % We will do a discrete convolution of S'*M by using the Toeplitz matrix
-% % form of the partial derivative of the lineshape vector S and M beeing 
-% % the metabolite basis functions. This is allowed as convolutions are 
-% % commutative and (M*S)' = M'*S = M*S' -> (M*S)' = S'*M.
-% 
-% %We need to create S' as a Toeplitz matrix. The derivatives will
-% %essantially be ones on the diagonal (first lineshape coeff) or the upper off
-% %diagonal (all other lineshape coeff). 
-% 
-% nLineShape = length(lineShape);
-% nPoints = length(resBasisSet.fids(:,1));
-% 
-% %Set up the first rows of each partial derivative
-% Toep1row = zeros(nLineShape,nPoints);
-% for ii = 1 : nLineShape
-%     Toep1row(ii,ii) = 1; 
-% end
-% 
-% %We will set it up as a 3D vector with the partial derivatives in the third dimensions and the
-% %Toeplitz matrix spanning the first two dimensions.
-% ToepLineShape = zeros(nPoints,nPoints,nLineShape);
-% for ii = 1 : nLineShape
-%     if ii <= 1
-%         ToepLineShape(:,:,ii) = toeplitz(Toep1row(ii,:));
-%     else
-%         ToepLineShape(:,:,ii) = tril(toeplitz(Toep1row(ii,:))); % extract lower triangle of the Toeplitz matrix
-%     end
-% end
-% 
-% for ii=1:nLineShape % Loop over the lineshape derivatives
-%     col = lineshapeCol(ii);
-%     for kk = 1 : nMets % Convolute all basis functions to create the full model function
-%         J(:,col) = J(:,col)+resBasisSet.fids(:,kk);
-%         Jfd(:,col) = Jfd(:,col) + ampl(kk)*(ToepLineShape(:,:,ii) * fftshift(fft(resBasisSet.fids(:,kk),[],1),1));
-%     end
-%         
-% end
-% 
-% J = real(Jfd);
 
+Sigma = inputSettings.NoiseSD;                           % Get sigma
+F = F./Sigma;
+
+F = vertcat(F,penalty');
+F = vertcat(F,RegMatrix);
+
+
+%%% 5. CALCULATE ANALYTIC JACOBIAN 
+
+Acomp = resBasisSet.specs;
+for kk = 1:resBasisSet.nMets
+    Acomp(:,kk) = conv(Acomp(:,kk), lineShapeNorm, 'same');
 end
 
+Bcomp = [splineArray(:,:,1) + 1i*splineArray(:,:,2)];
+Bcomp = Bcomp  * exp(1i*ph0);
+Bcomp = Bcomp .* exp(1i*ph1*multiplier);
+
+ABcomp = [Acomp Bcomp];
+completeFit = ABcomp*ampl;
+
+% Plot (comment out if not debugging)
+% figure(99)
+% plot(data); hold;
+% plot(AB*ampl);
+% plot(B*ampl(size(A,2)+1:end)); plot(data - (AB*ampl) + 1.1*max(data));
+% for rr = 1:(nMets+nMM)
+%     plot(ampl(rr)*A(:,rr));
+% end
+% title('Preliminary Analysis with full basis set (unregularized)');
+% hold;
+
+%Computation of the Jacobian
+J = zeros(length(data),length(x));
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt ph0
+J(:,1) = 1i * completeFit * pi/180;
+
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt ph1
+J(:,2) = 1i * completeFit * pi/180 .* multiplier;
+
+
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt gaussLB
+for ii = 1:nBasisFcts
+        tempBasis.fids(:,ii) = -tempBasis.fids(:,ii).*(t.^2)';        
+end
+tempBasis = op_freqrange(tempBasis,fitRangePPM(1),fitRangePPM(end),length(splineArray(:,1,1)));
+% Create a ppm vector around a pivot point (water)
+ppm_ax = tempBasis.ppm;
+pivotPoint = 4.68;
+multiplier = ppm_ax - pivotPoint;
+% Apply the linear phase correction
+for ii=1:nBasisFcts
+    tempBasis.specs(:,ii) = tempBasis.specs(:,ii) .* exp(1i*ph1*multiplier);
+end
+
+for ii = 1:nBasisFcts
+    if ii <= nMets 
+        J(:,3) = J(:,3) + conv(tempBasis.specs(:,ii), lineShapeNorm, 'same')*ampl(ii); 
+    else  % No convolution is applied to the MM functions
+        J(:,3) = J(:,3) + tempBasis.specs(:,ii)*ampl(ii);             
+    end
+end
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt lorentzLB
+for ii = 1:nBasisFcts
+        tempBasis.fids(:,ii) = -tempBasis.fids(:,ii).*t';        
+end
+tempBasis = op_freqrange(tempBasis,fitRangePPM(1),fitRangePPM(end),length(splineArray(:,1,1)));
+% Create a ppm vector around a pivot point (water)
+ppm_ax = tempBasis.ppm;
+pivotPoint = 4.68;
+multiplier = ppm_ax - pivotPoint;
+% Apply the linear phase correction
+for ii=1:nBasisFcts
+    tempBasis.specs(:,ii) = tempBasis.specs(:,ii) .* exp(1i*ph1*multiplier);
+end
+
+for ii = 1:nBasisFcts
+    if ii <= nMets 
+        J(:,3+ii) = J(:,3+ii) + conv(tempBasis.specs(:,ii), lineShapeNorm, 'same')*ampl(ii); 
+    else  % No convolution is applied to the MM functions
+        J(:,3+ii) = J(:,3+ii) + tempBasis.specs(:,ii)*ampl(ii);             
+    end
+end
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt freqShift
+for ii = 1:nBasisFcts
+        tempBasis.fids(:,ii) = 1i*tempBasis.fids(:,ii).*t';        
+end
+tempBasis = op_freqrange(tempBasis,fitRangePPM(1),fitRangePPM(end),length(splineArray(:,1,1)));
+% Create a ppm vector around a pivot point (water)
+ppm_ax = tempBasis.ppm;
+pivotPoint = 4.68;
+multiplier = ppm_ax - pivotPoint;
+% Apply the linear phase correction
+for ii=1:nBasisFcts
+    tempBasis.specs(:,ii) = tempBasis.specs(:,ii) .* exp(1i*ph1*multiplier);
+end
+
+for ii = 1:nBasisFcts
+    if ii <= nMets 
+        J(:,3+nBasisFcts+ii) = J(:,3+nBasisFcts+ii) + conv(tempBasis.specs(:,ii), lineShapeNorm, 'same')*ampl(ii);  
+    else  % No convolution is applied to the MM functions
+        J(:,3+nBasisFcts+ii) = J(:,3+nBasisFcts+ii) + tempBasis.specs(:,ii)*ampl(ii);             
+    end
+end
+
+% derivative  wrt basis set  amplitudes 
+for ii=1:nBasisFcts
+        J(:,3+2*nBasisFcts+ii) = Acomp(:,ii);
+end
+
+
+% derivative wrt spline amplitudes
+for ii=1:nSplines
+    J(:,3+3*nBasisFcts+ii) = Bcomp(:,ii);
+end
+
+
+%derivative wrt lineshape 
+% dconv(f,g(c_n))/dc_n = conv(df/dc_n,g(c_n)) = conv(f,dg(c_n)/dc_n)
+% g(c_n) is the lineshape which is normalized, so we need quotient rule
+% here.
+% Quotient rule:
+% f(x) = u/v
+% f'(x) = u'v-uv'/v.^2
+%
+% g([c_n]) = [c_n]/sum([c_n])
+%
+% u = [c_n]
+% v = sum([c_n])
+%
+% Partial derivative with regard to c_n exmaple with c_1
+% du/dc_1 = [1,0,0,0,...]
+% dv/dc_1 = sum([1,0,0,0,...]) = 1
+%
+% dg(c_n)/dc_n = ([1,0,0,...,n]*sum([c_n])-[c_n]*1)/(sum([c_n]).^2)
+%
+
+for ii=1:length(lineShape)
+
+    u = lineShape;
+    der_u = zeros(length(lineShape), 1);  %du/dc_n
+    der_u(ii) = 1;                        %du/dc_n    
+    v = sum(lineShape);
+    der_v = 1;                            %dv/dc_n
+
+    der_lineshape_wrt_c_n = (der_u * v - u)/(v^2); % dg(c_n)/dc_n
+   
+
+    A = real(resBasisSet.specs);
+    for kk = 1:resBasisSet.nMets
+        A(:,kk) = conv(A(:,kk), der_lineshape_wrt_c_n, 'same');
+    end
+    A =  A(:,1:resBasisSet.nMets) *ampl(1:resBasisSet.nMets);
+    J(:, 3+3*nBasisFcts+nSplines+ii) = J(:, 3+3*nBasisFcts+nSplines+ii) + A;
+end
+
+Sigma = inputSettings.NoiseSD;                           % Get sigma
+J = J./Sigma;
+J = -real(J);
+
+if ~isempty(GAP)
+     J = vertcat(J(ppm_ax<GAP(1),:),J(ppm_ax>GAP(2),:));   
+end
+
+J = cat(1, J, penaltyJac);                                          % Append to Jacobian
+J = cat(1, J, RegMatrixJ);                                          % Append to Jacobian
+
+end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%% FINAL LINEAR ITERATION %%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [fitParamsFinal] = fit_Osprey_PrelimStep2_finalLinear(x, inputData, inputSettings)
+function [fitParamsFinal, J] = fit_Osprey_PrelimStep2_finalLinear(x, inputData, inputSettings)
 %   This function is applied after the final iteration of the non-linear
 %   solver has returned the final set of non-linear parameters.
 %
@@ -654,7 +572,7 @@ freqShift   = x(nBasisFcts+4:2*nBasisFcts+3); % Frequency shift [Hz] for each ba
 ampl        = x(2*nBasisFcts+4:3*nBasisFcts+3+size(splineArray,2));
 lineShape   = x(3*nBasisFcts+4+size(splineArray,2):end);
 % Normalize
-lineShape = lineShape/sum(lineShape);
+lineShapeNorm = lineShape/sum(lineShape);
 
 
 %%% 2. APPLY THE NON-LINEAR PARAMETERS %%%
@@ -666,6 +584,7 @@ for ii=1:nBasisFcts
     resBasisSet.fids(:,ii) = resBasisSet.fids(:,ii) * exp(1i*ph0);
 end
 resBasisSet.specs = fftshift(fft(resBasisSet.fids,[],1),1);
+resBasisSetWithTDOps = resBasisSet;
 
 % Run the frequency-domain operations on the basis functions
 % (first order phase correction)
@@ -679,6 +598,7 @@ for ii=1:nBasisFcts
 end
 resBasisSet.fids = ifft(fftshift(resBasisSet.specs,1),[],1);
 
+
 % Apply phasing to the spline basis functions
 B = [splineArray(:,:,1) + 1i*splineArray(:,:,2)];
 B = B  * exp(1i*ph0);
@@ -689,17 +609,34 @@ B = [real(B)];
 %%% 3. SET UP AND CALL SOLVER FOR LINEAR PARAMETERS %%%
 % To calculate the linearly occurring amplitude parameters for the
 % metabolite/MM/lipid basis functions and the baseline basis functions, we
-% call the linear L-BFGS-B algorithm.
-% (c) Stephen Becker
-% (https://www.mathworks.com/matlabcentral/fileexchange/35104-lbfgsb-l-bfgs-b-mex-wrapper)
+% call the Matlab fmincon
 
 % Set up the equation system to be solved
 % Convolve the lineshape with the metabolite basis functions only
 % (NOT the macromolecules or lipids or baseline splines).
 A = real(resBasisSet.specs);
 for kk = 1:resBasisSet.nMets
-    A(:,kk) = conv(A(:,kk), lineShape, 'same');
+    A(:,kk) = conv(A(:,kk), lineShapeNorm, 'same');
 end
+
+e = ones(length(lineShape),1);                        % Create single column vector 
+RegMatrixD = spdiags([e -2*e e],-1:1,length(lineShape),length(lineShape));   % Create second differencing matrix
+RegMatrixD = full(RegMatrixD);                        % Convert sparse representation to full matrix
+RegParLS = inputSettings.RegParLS;
+
+for ii=1:length(lineShape)
+    u = lineShape;
+    der_u = zeros(length(lineShape), 1);  %du/dc_n
+    der_u(ii) = 1;                        %du/dc_n    
+    v = sum(lineShape);
+    der_v = 1;                            %dv/dc_n
+
+    der_lineshape_wrt_c_n(:,ii) = (der_u * v - u)/(v^2); % dg(c_n)/dc_n
+end
+RegMatrixJ  = zeros(length(x),length(x));
+RegMatrixJ(3+3*nBasisFcts+1+nSplines:3+3*nBasisFcts+length(lineShape)+nSplines,3+3*nBasisFcts+1+nSplines:3+3*nBasisFcts+length(lineShape)+nSplines) = sqrt(RegParLS)*RegMatrixD*der_lineshape_wrt_c_n;
+RegMatrix  = zeros(length(x),1);
+RegMatrix(3+3*nBasisFcts+1+nSplines:3+3*nBasisFcts+length(lineShape)+nSplines,1) = sqrt(RegParLS)*RegMatrixD*lineShapeNorm;
 
 % Concatenate the metabolite/MM/lipid basis functions and the baseline basis
 % functions 
@@ -710,30 +647,33 @@ data        = real(dataToFit.specs);
 b           = data;
 
 if ~isempty(GAP)
-     b =  vertcat(b(ppm_ax<GAP(1)),b(ppm_ax>GAP(2)));
-     AB =  vertcat(AB(ppm_ax<GAP(1),:),AB(ppm_ax>GAP(2),:));
+     AB = vertcat(AB(ppm_ax<GAP(1),:),AB(ppm_ax>GAP(2),:));  
+     b = vertcat(b(ppm_ax<GAP(1)),b(ppm_ax>GAP(2)));  
 end
+
 
 % The function we want to minimize is the sum of squares of the residual
 fcn     = @(x) norm( AB*x - b)^2;
 AtA     = AB'*AB; Ab = AB'*b;
 grad    = @(x) 2*( AtA*x - Ab );
+hess    = @(x) 2*AtA;
 
 % Define bounds. The lower bounds for the metabolite/MM/lipid basis
 % functions are zero. All other parameters are supposed to be unbound.
 l = [zeros(nMets+nMM,1);    -inf*ones(nSplines,1)];
 u = [inf*ones(nMets+nMM,1);  inf*ones(nSplines,1)];
 
-% Prepare the function wrapper
-fun     = @(x)fminunc_wrapper( x, fcn, grad);
-% Request very high accuracy:
-opts    = struct( 'factr', 1e4, 'pgtol', 1e-8, 'm', 10);
-opts.printEvery     = 0;
 
-% Run the algorithm:
-% Feed initial guess from the input parameters
-opts.x0 = ampl;
-[ampl, ~, ~] = lbfgsb(fun, l, u, opts );
+% Prepare the function wrapper
+fun     = @(x)fminunc_wrapper( x, fcn, grad, hess);
+
+opts = optimoptions("fmincon","SpecifyObjectiveGradient",true,'Algorithm','trust-region-reflective',...
+    'SpecifyObjectiveGradient',true,'Display','none',...
+    'HessianFcn','objective',MaxFunctionEvaluations=Inf,MaxIterations=Inf,...
+    StepTolerance=1e-8,FunctionTolerance=1e-12,OptimalityTolerance=1e-12);
+
+[ampl] =...
+    fmincon(fun, ampl, [],[],[],[],l,u,[],opts);
 
 
 %%% 4. ADD SOFT CONSTRAINTS ON AMPLITUDES %%%
@@ -741,7 +681,9 @@ opts.x0 = ampl;
 % with additional rows in the equation system. This is done in the function
 % fit_createSoftConstrOsprey.
 % (see Wilson et al., MRM 2011)
-[augmA, augmb] = fit_createSoftConstrOsprey(resBasisSet, AB, b, ampl);
+[augmA, augmb, J_augmb] = fit_createSoftConstrOsprey(resBasisSet, AB, b, ampl);
+
+
 A_augB  = [AB; augmA];
 b_aug   = [b; augmb];
 
@@ -750,12 +692,19 @@ b_aug   = [b; augmb];
 fcn     = @(x) norm( A_augB*x - b_aug)^2;
 AtA     = A_augB'*A_augB; A_augb = A_augB'*b_aug;
 grad    = @(x) 2*( AtA*x - A_augb );
+hess    = @(x) 2*AtA;
+
+
 % Prepare the function wrapper
-fun     = @(x)fminunc_wrapper(x, fcn, grad);
-% Run the algorithm:
-% Feed initial guess from the input parameters
-opts.x0 = ampl;
-[ampl, ~, ~] = lbfgsb( fun, l, u, opts );
+fun     = @(x)fminunc_wrapper( x, fcn, grad, hess);
+
+opts = optimoptions("fmincon","SpecifyObjectiveGradient",true,'Algorithm','trust-region-reflective',...
+    'SpecifyObjectiveGradient',true,'Display','none',...
+    'HessianFcn','objective',MaxFunctionEvaluations=Inf,MaxIterations=Inf,...
+    StepTolerance=1e-8,FunctionTolerance=1e-12,OptimalityTolerance=1e-12);
+
+[ampl] =...
+    fmincon(fun, ampl, [],[],[],[],l,u,[],opts);
 
 
 %%% 5. CREATE OUTPUT %%%
@@ -780,6 +729,170 @@ fitParamsFinal.beta_j       = ampl(size(A,2)+1:end);
 % title('Preliminary Analysis with full basis set (unregularized)');
 % hold;
 
+%%% 6. CALCULATE ANALYTIC JACOBIAN 
+
+Acomp = resBasisSet.specs;
+for kk = 1:resBasisSet.nMets
+    Acomp(:,kk) = conv(Acomp(:,kk), lineShapeNorm, 'same');
+end
+
+Bcomp = [splineArray(:,:,1) + 1i*splineArray(:,:,2)];
+Bcomp = Bcomp  * exp(1i*ph0);
+Bcomp = Bcomp .* exp(1i*ph1*multiplier);
+
+ABcomp = [Acomp Bcomp];
+completeFit = ABcomp*ampl;
+
+%Computation of the Jacobian
+J = zeros(length(data),length(x));
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt ph0
+J(:,1) = 1i * completeFit * pi/180;
+
+
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt ph1
+J(:,2) = 1i * completeFit * pi/180 .* multiplier;
+
+
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt gaussLB
+for ii = 1:nBasisFcts
+        tempBasis.fids(:,ii) = -tempBasis.fids(:,ii).*(t.^2)';        
+end
+tempBasis = op_freqrange(tempBasis,fitRangePPM(1),fitRangePPM(end),length(splineArray(:,1,1)));
+% Create a ppm vector around a pivot point (water)
+ppm_ax = tempBasis.ppm;
+pivotPoint = 4.68;
+multiplier = ppm_ax - pivotPoint;
+% Apply the linear phase correction
+for ii=1:nBasisFcts
+    tempBasis.specs(:,ii) = tempBasis.specs(:,ii) .* exp(1i*ph1*multiplier);
+end
+
+for ii = 1:nBasisFcts
+    if ii <= nMets 
+        J(:,3) = J(:,3) + conv(tempBasis.specs(:,ii), lineShapeNorm, 'same')*ampl(ii); 
+    else  % No convolution is applied to the MM functions
+        J(:,3) = J(:,3) + tempBasis.specs(:,ii)*ampl(ii);             
+    end
+end
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt lorentzLB
+for ii = 1:nBasisFcts
+        tempBasis.fids(:,ii) = -tempBasis.fids(:,ii).*t';        
+end
+tempBasis = op_freqrange(tempBasis,fitRangePPM(1),fitRangePPM(end),length(splineArray(:,1,1)));
+% Create a ppm vector around a pivot point (water)
+ppm_ax = tempBasis.ppm;
+pivotPoint = 4.68;
+multiplier = ppm_ax - pivotPoint;
+% Apply the linear phase correction
+for ii=1:nBasisFcts
+    tempBasis.specs(:,ii) = tempBasis.specs(:,ii) .* exp(1i*ph1*multiplier);
+end
+
+for ii = 1:nBasisFcts
+    if ii <= nMets 
+        J(:,3+ii) = J(:,3+ii) + conv(tempBasis.specs(:,ii), lineShapeNorm, 'same')*ampl(ii); 
+    else  % No convolution is applied to the MM functions
+        J(:,3+ii) = J(:,3+ii) + tempBasis.specs(:,ii)*ampl(ii);             
+    end
+end
+
+tempBasis = resBasisSetWithTDOps;
+%derivative wrt freqShift
+for ii = 1:nBasisFcts
+        tempBasis.fids(:,ii) = 1i*tempBasis.fids(:,ii).*t';        
+end
+tempBasis = op_freqrange(tempBasis,fitRangePPM(1),fitRangePPM(end),length(splineArray(:,1,1)));
+% Create a ppm vector around a pivot point (water)
+ppm_ax = tempBasis.ppm;
+pivotPoint = 4.68;
+multiplier = ppm_ax - pivotPoint;
+% Apply the linear phase correction
+for ii=1:nBasisFcts
+    tempBasis.specs(:,ii) = tempBasis.specs(:,ii) .* exp(1i*ph1*multiplier);
+end
+
+for ii = 1:nBasisFcts
+    if ii <= nMets 
+        J(:,3+nBasisFcts+ii) = J(:,3+nBasisFcts+ii) + conv(tempBasis.specs(:,ii), lineShapeNorm, 'same')*ampl(ii);  
+    else  % No convolution is applied to the MM functions
+        J(:,3+nBasisFcts+ii) = J(:,3+nBasisFcts+ii) + tempBasis.specs(:,ii)*ampl(ii);             
+    end
+end
+
+% derivative  wrt basis set  amplitudes 
+for ii=1:nBasisFcts
+        J(:,3+2*nBasisFcts+ii) = Acomp(:,ii);
+end
+
+
+% derivative wrt spline amplitudes
+for ii=1:nSplines
+    J(:,3+3*nBasisFcts+ii) = Bcomp(:,ii);
+end
+
+
+%derivative wrt lineshape 
+% dconv(f,g(c_n))/dc_n = conv(df/dc_n,g(c_n)) = conv(f,dg(c_n)/dc_n)
+% g(c_n) is the lineshape which is normalized, so we need quotient rule
+% here.
+% Quotient rule:
+% f(x) = u/v
+% f'(x) = u'v-uv'/v.^2
+%
+% g([c_n]) = [c_n]/sum([c_n])
+%
+% u = [c_n]
+% v = sum([c_n])
+%
+% Partial derivative with regard to c_n exmaple with c_1
+% du/dc_1 = [1,0,0,0,...]
+% dv/dc_1 = sum([1,0,0,0,...]) = 1
+%
+% dg(c_n)/dc_n = ([1,0,0,...,n]*sum([c_n])-[c_n]*1)/(sum([c_n]).^2)
+%
+
+for ii=1:length(lineShape)
+
+    u = lineShape;
+    der_u = zeros(length(lineShape), 1);  %du/dc_n
+    der_u(ii) = 1;                        %du/dc_n    
+    v = sum(lineShape);
+    der_v = 1;                            %dv/dc_n
+
+    der_lineshape_wrt_c_n = (der_u * v - u)/(v^2); % dg(c_n)/dc_n
+   
+
+    A = real(resBasisSet.specs);
+    for kk = 1:resBasisSet.nMets
+        A(:,kk) = conv(A(:,kk), der_lineshape_wrt_c_n, 'same');
+    end
+    A =  A(:,1:resBasisSet.nMets) *ampl(1:resBasisSet.nMets);
+    J(:, 3+3*nBasisFcts+nSplines+ii) = J(:, 3+3*nBasisFcts+nSplines+ii) + A;
+end
+
+Sigma = inputSettings.NoiseSD;                           % Get sigma
+J = J./Sigma;
+J = -real(J);
+
+if ~isempty(GAP)
+     J = vertcat(J(ppm_ax<GAP(1),:),J(ppm_ax>GAP(2),:));    
+end
+
+
+penaltyJac  = zeros(size(augmA,1),length(x));
+penaltyJac(:,4+2*nBasisFcts:4+2*nBasisFcts-1+size(augmA,2)) = 2*(augmA.*augmA.*ampl'); 
+
+
+J = cat(1, J, penaltyJac);                                          % Append to Jacobian
+J = cat(1, J, RegMatrixJ);                                          % Append to Jacobian
+
 
 end 
-

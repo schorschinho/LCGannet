@@ -44,6 +44,13 @@ end
 
 
 dataToFit               = op_zeropad(dataToFit, 2);
+
+% We need the noiseSD for normalization
+[dataToFit.NoiseSD]=fit_getNoiseSD(dataToFit);
+
+% Let's also add the regularization parameter for the conv kernel
+dataToFit.RegParLS = fitOpts.RegParLS;
+
 % Resample basis set to match data resolution and frequency range
 resBasisSet             = fit_resampleBasis(dataToFit, basisSet);
 
@@ -188,7 +195,9 @@ else
     end
 end
 
-% [J,~,CRLB] = fit_Osprey_CRLB(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM,fitParamsStep2,refShift);
+ [CRLB,comb_names] = fit_Osprey_CRLB(fitParamsStep2, resBasisSet.name);
+
+ % Let's round CRLBs to 999 like LCModel
 
 %%% 5. CREATE OUTPUT %%%
 % Return fit parameters
@@ -196,7 +205,9 @@ fitParams = fitParamsStep2;
 fitParams.refShift = refShift;
 fitParams.refFWHM = refFWHM;
 fitParams.prelimParams = fitParamsStep1;
-%fitParams.CRLB = CRLB;
+fitParams.CRLB = CRLB';
+fitParams.comb_names = comb_names;
+
 end
 
 

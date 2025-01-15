@@ -80,6 +80,29 @@ for kk = 1:MRSCont.nDatasets(1)
             end
 
             fitOpts.GAP = MRSCont.opts.fit.GAP.diff1;
+            basisSetDiff1.names{1} = 'diff1';
+
+            % Automatically pick the metabolties to be included based on
+            % the editing target metabolite is set to 100% and only
+            % metabolites > 20% co-editing are included
+
+            intensity = sum(abs(basisSetDiff1.specs(basisSetDiff1.ppm > fitOpts.range(1) & basisSetDiff1.ppm < fitOpts.range(2),:)),1);
+            idx = find(strcmp(MRSCont.opts.editTarget{1},basisSetDiff1.name));
+            if ~isempty(idx)
+                rel_intensity = intensity/intensity(idx);
+                editing_thresh = find(rel_intensity > 0.2);
+                thresh_MetabList = basisSetDiff1.name(editing_thresh);
+                metabList = fit_createMetabList(thresh_MetabList);
+                basisSetDiff1 = fit_selectMetabs(basisSetDiff1, metabList, 1);
+            else
+                metabList = fit_createMetabList({'GABA','GSH','Gln','Glu','NAAG','NAA','MM09'});
+                basisSetDiff1 = fit_selectMetabs(basisSetDiff1, metabList, 1);
+            end
+
+            % For manual overwrite indicate the metabolites to be added
+            % metabList = fit_createMetabList({'GABA','GSH','Gln','Glu','NAAG','NAA','MM09'});
+            % basisSetDiff1 = fit_selectMetabs(basisSetDiff1, metabList, 1);
+
             % Call the fit function
             [fitParamsDiff1, resBasisSetDiff1]  = fit_runFit(dataToFit, basisSetDiff1, fitModel, fitOpts);
 
@@ -100,6 +123,27 @@ for kk = 1:MRSCont.nDatasets(1)
             fitOpts.Diff2 = 1;
 
             fitOpts.GAP = MRSCont.opts.fit.GAP.diff2;
+            basisSetDiff2.names{1} = 'diff2';
+
+            % Automatically pick the metabolties to be included based on
+            % the editing target metabolite is set to 100% and only
+            % metabolites > 5% co-editing are included
+
+            intensity = sum(abs(basisSetDiff2.specs(basisSetDiff2.ppm > fitOpts.range(1) & basisSetDiff2.ppm < fitOpts.range(2),:)),1);
+            idx = find(strcmp(MRSCont.opts.editTarget{2},basisSetDiff2.name));
+            if ~isempty(idx)
+                rel_intensity = intensity/intensity(idx);
+                editing_thresh = find(rel_intensity > 0.05);
+                thresh_MetabList = basisSetDiff2.name(editing_thresh);
+                metabList = fit_createMetabList(thresh_MetabList);
+                %Create the modified basis set
+                basisSetDiff2 = fit_selectMetabs(basisSetDiff2, metabList, 1);
+            end
+
+            % For manual overwrite indicate the metabolites to be added
+            % metabList = fit_createMetabList({'GABA','GSH','Gln','Glu','NAAG','NAA','MM09'});
+            % basisSetDiff2 = fit_selectMetabs(basisSetDiff2, metabList, 1);
+
             % Call the fit function
             [fitParamsDiff2, resBasisSetDiff2]  = fit_runFit(dataToFit, basisSetDiff2, fitModel, fitOpts);
 
