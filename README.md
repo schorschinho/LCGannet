@@ -7,6 +7,7 @@
 [![Website](https://img.shields.io/website?down_color=lightgrey&down_message=offline&up_color=green&up_message=online&url=https%3A%2F%2Fschorschinho.github.io%2Fosprey)](https://schorschinho.github.io/osprey)
 [![License](https://img.shields.io/github/license/schorschinho/osprey)](https://github.com/schorschinho/osprey/blob/develop/LICENSE.md)
 [![DOI](https://zenodo.org/badge/197683508.svg)](https://doi.org/10.5281/zenodo.14226197)
+[![GitHub Total Downloads](https://img.shields.io/github/downloads/schorschinho/osprey/total)]
 
 <img src="graphics/osprey.png" alt="Osprey" width="200"/>
 
