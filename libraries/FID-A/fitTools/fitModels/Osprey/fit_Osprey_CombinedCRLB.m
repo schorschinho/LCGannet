@@ -1,4 +1,4 @@
-function [crlbs,names] = fit_Osprey_CombinedCRLB(invFisher, fitParams, metaboliteNames, StartIdxMetab,crlbs)
+function [crlbs,names] = fit_Osprey_CombinedCRLB(invFisher, fitParams, metaboliteNames, StartIdxMetab,crlbs,MM3coModel,subspec)
 %%  [crlbs,names] = fit_Osprey_CombinedCRLB(jacobian, metaboliteNames, parametrizations)
 %   This method calculates the CRLBs of metabolite combinations inthe OspreyFitObj 
 %
@@ -25,8 +25,13 @@ function [crlbs,names] = fit_Osprey_CombinedCRLB(invFisher, fitParams, metabolit
 %       Simpson et al., Magn Reson Med 77:23-33 (2017)
 
 %% 0. Set names cell arrays and houskeeping
-typicalMetaboliteCombinations = {'NAA','NAAG';'GPC','PCh';'Cr','PCr';'Glu','Gln';'EA','PE';'GABA','MM3co'; 'GABA', 'MM3to2'}; 
-MetaboliteCombinationNames = {'tNAA','tCho','tCr','Glx','tEA','GABAplus','GABAplus'};
+if ~strcmp(MM3coModel,'3to2MM') || strcmp(subspec,'A') || strcmp(subspec,'sum')
+    typicalMetaboliteCombinations = {'NAA','NAAG';'GPC','PCh';'Cr','PCr';'Glu','Gln';'EA','PE';'GABA','MM3co'}; 
+    MetaboliteCombinationNames = {'tNAA','tCho','tCr','Glx','tEA','GABAplus'};
+else
+    typicalMetaboliteCombinations = {'NAA','NAAG';'GPC','PCh';'Cr','PCr';'Glu','Gln';'EA','PE';'GABA','MM3co'; 'GABA', 'MM09'}; 
+    MetaboliteCombinationNames = {'tNAA','tCho','tCr','Glx','tEA','GABAplus','GABAplus'};
+end
 
 
 nPars = 1;

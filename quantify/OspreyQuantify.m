@@ -573,6 +573,7 @@ if ~strcmp(MRSCont.opts.fit.method, 'LCModel')
                             GABAp = MRSCont.quantify.amplMets{mm,kk,ss}.metab(idx_1,:) + MRSCont.quantify.amplMets{mm,kk,ss}.metab(idx_2,:);
                         end
                         MRSCont.quantify.amplMets{mm,kk,ss}.metab(idx_GABAp,:) = GABAp*2;
+                        MRSCont.quantify.CRLB{mm,kk,ss}.metab(idx_GABAp,:) = MRSCont.quantify.CRLB{mm,kk,ss}.metab(idx_1,:);
                     end
                 end
             else if strcmp(MRSCont.opts.fit.coMM3, '3to2MM') % fixed MM09 coMM3 model
@@ -1032,7 +1033,7 @@ for mm = 1 : size(amplMets,1)
     for ss = 1 : size(amplMets,3)
         for AlphaMets = 1 : length(metabNames)
             idx  = find(strcmp(metsName.metab{mm,ss},metabNames{AlphaMets}));
-
+            if ~isempty(idx)
             [T1_Metab_GM, T1_Metab_WM, T2_Metab_GM, T2_Metab_WM] = lookUpRelaxTimes(metsName.metab{mm,ss}{idx},Bo);
             % average across GM and WM
             T1_Metab = mean([T1_Metab_GM T1_Metab_WM]);
@@ -1041,9 +1042,13 @@ for mm = 1 : size(amplMets,1)
                     .* (fGM * concW_GM * (1 - exp(-waterTR/T1w_GM)) * exp(-waterTE/T2w_GM) / ((1 - exp(-metsTR/T1_Metab)) * exp(-metsTE/T2_Metab)) + ...
                         fWM * concW_WM * (1 - exp(-waterTR/T1w_WM)) * exp(-waterTE/T2w_WM) / ((1 - exp(-metsTR/T1_Metab)) * exp(-metsTE/T2_Metab)) + ...
                         fCSF * concW_CSF * (1 - exp(-waterTR/T1w_CSF)) * exp(-waterTE/T2w_CSF) / ((1 - exp(-metsTR/T1_Metab)) * exp(-metsTE/T2_Metab)));
-    
+            
             AlphaCorrWaterScaled{mm,ss}(:,AlphaMets) = ConcIU_TissCorr_Harris{mm,ss} ./ (fGM + alpha*fWM);
             AlphaCorrWaterScaledGroupNormed{mm,ss}(:,AlphaMets) = ConcIU_TissCorr_Harris{mm,ss} .* CorrFactor;
+            else
+                AlphaCorrWaterScaled{mm,ss}(:,AlphaMets) = zeros(size(CorrFactor));
+                AlphaCorrWaterScaledGroupNormed{mm,ss}(:,AlphaMets) = zeros(size(CorrFactor));
+            end
         end
 
         if ~isempty(find(strcmp(metsName.metab{mm,ss},'GABAplus')))

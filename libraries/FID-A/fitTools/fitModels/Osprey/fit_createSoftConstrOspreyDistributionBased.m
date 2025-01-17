@@ -1,21 +1,30 @@
-function [penalty, penaltyJac] = fit_createSoftConstrOspreyDistributionBased(basisSet,ampl,nParams,nBasisFcts)
-
-if strcmp(basisSet.names{1},'A')
+function [penalty, penaltyJac] = fit_createSoftConstrOspreyDistributionBased(basisSet,ampl,nParams,nBasisFcts,soft,constTarget)
+if nargin < 5
     constr1.met     = {'Lip13', 'Lip13', 'MM09', 'MM09', 'MM09', 'MM09', 'NAA', 'MM09', 'MM09', 'MM09', 'MM09'};
     constr1.wght    = [1        1        1       1       1       1       1          1       1       1       1];
     constr2.met     = {'Lip09', 'Lip20', 'MM20', 'MM12', 'MM14', 'MM17', 'NAAG', 'MM37', 'MM38', 'MM40', 'MM42'};
     constr2.wght    = [0.267    0.15     1.5     0.3     0.75    0.375   0.15      0.89   0.1     1.39      0.3];
-    constr2.sd      = [0.1      0.07     0.375   0.1     0.45    0.1     0.15      0.40   0.1     0.375     0.1];
-
-
+    constr2.sd      = [0.1      0.07     0.375   0.1     0.45    0.1     0.15      0.40   0.1     0.375     0.1];   
 else
+
     constr1.met     = {'Lip13', 'Lip13', 'MM09', 'MM09', 'MM09', 'MM09', 'NAA', 'MM09', 'MM09', 'MM09', 'MM09'};
     constr1.wght    = [1        1        1       1       1       1       1          1       1       1       1];
     constr2.met     = {'Lip09', 'Lip20', 'MM20', 'MM12', 'MM14', 'MM17', 'NAAG', 'MM37', 'MM38', 'MM40', 'MM42'};
     constr2.wght    = [0.267    0.15     1.5     0.3     0.75    0.375   0.15      0.89   0.1     1.39      0.3];
     constr2.sd      = [0.1      0.07     0.375   0.1     0.45    0.1     0.15      0.40   0.1     0.375     0.1];
-
+    switch constTarget
+        case 'MM'
+            constr1.met{end+1} = 'MM09';               
+        case 'GABA'
+            constr1.met{end+1} = 'GABA'; 
+    end
+    constr1.wght(end+1) = 1;  
+    constr2.met{end+1} = 'MM3co';
+    constr2.wght(end+1) = soft;  
+    constr2.sd(end+1) = 0.15; 
 end
+
+
 
     % constr1.met     = {'NAA'};
     % constr1.wght    = [    1 ];

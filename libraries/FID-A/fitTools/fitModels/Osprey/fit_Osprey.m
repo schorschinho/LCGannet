@@ -171,16 +171,20 @@ if ~isfield(fitOpts,'mm_clean_spline') && ~isfield(fitOpts,'GaussLBMM')
     if isfield(fitOpts,'coMM3') && isfield(dataToFit,'refShift') && ~isfield(fitOpts,'Diff2')
         switch fitOpts.coMM3        
             case '3to2MMsoft'
-            [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,0.66,'MM');
+            [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,0.66,'MM',fitOpts.GAP);
             case '1to1GABAsoft'
-            [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,1,'GABA');
+            [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,1,'GABA',fitOpts.GAP);
             case '3to2GABAsoft'  % 3:2 GABA and co-edited MM3 model
-            [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,0.66,'GABA');
+            [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,0.66,'GABA',fitOpts.GAP);
             case '2to3GABAsoft' % 2:3 GABA and co-edited MM3 model
-            [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,1.5,'GABA');
+            [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,1.5,'GABA',fitOpts.GAP);
             case 'freeGauss' % Gauss with free frequency and linewidth
-            [fitParamsStep2] = fit_OspreyPrelimStep2freeGauss(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM);
-            resBasisSet = fitParamsStep2.resBasisSetUpdated;
+                % This model was sunset in version 2.10 due to the lack of an analytical jacobian
+                 msg = 'The freeGauss model is not supported anymore. Apologies for the inconvenience. Change to any other MM3co model.';
+                fprintf(msg);
+                error(msg);
+                % [fitParamsStep2] = fit_OspreyPrelimStep2freeGauss(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,fitOpts.GAP);
+                % resBasisSet = fitParamsStep2.resBasisSetUpdated;
             otherwise
                 [fitParamsStep2] = fit_OspreyPrelimStep2(dataToFitRef, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM,fitOpts.GAP);
         end             
@@ -195,7 +199,7 @@ else
     end
 end
 
- [CRLB,comb_names] = fit_Osprey_CRLB(fitParamsStep2, resBasisSet.name);
+ [CRLB,comb_names] = fit_Osprey_CRLB(fitParamsStep2, resBasisSet,fitOpts.coMM3);
 
  % Let's round CRLBs to 999 like LCModel
 

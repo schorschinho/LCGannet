@@ -1,4 +1,4 @@
-function [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFit, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM, soft,constTarget)
+function [fitParamsStep2] = fit_OspreyPrelimStep2coMM3(dataToFit, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM, soft,constTarget,GAP)
 %% [fitParamsStep2] = fit_OspreyPrelimStep2(dataToFit, resBasisSet, minKnotSpacingPPM, fitRangePPM, fitParamsStep1, refFWHM)
 %   Performs the second step of the LCModel preliminary analysis
 %   according to the LCModel algorithm. The algorithm is described in:
@@ -116,6 +116,7 @@ inputSettings.SDT2          = SDT2';
 inputSettings.SDSH          = SDSH';
 inputSettings.soft          = soft;
 inputSettings.constTarget   = constTarget;
+inputSettings.GAP           = GAP;
 inputSettings.RegParLS      = dataToFit.RegParLS;
 
 % Set the hard box constraints for the parameters
@@ -234,6 +235,8 @@ fitRangePPM   = inputSettings.fitRangePPM;
 EXT2          = inputSettings.EXT2;
 SDT2          = inputSettings.SDT2;
 SDSH          = inputSettings.SDSH;
+soft          = inputSettings.soft;
+constTarget   = inputSettings.constTarget;
 GAP           = inputSettings.GAP;
 % ... fit parameters
 nMets       = resBasisSet.nMets;
@@ -326,7 +329,11 @@ b           = data;
 
 
 if inputSettings.sc
-    [penalty,penaltyJac] = fit_createSoftConstrOspreyDistributionBased(resBasisSet,ampl,length(x),nBasisFcts);
+    if ~soft 
+        [penalty,penaltyJac] = fit_createSoftConstrOspreyDistributionBased(resBasisSet,ampl,length(x),nBasisFcts);
+    else
+        [penalty,penaltyJac] = fit_createSoftConstrOspreyDistributionBased(resBasisSet,ampl,length(x),nBasisFcts,soft,constTarget);
+    end
 else
     penalty =[];
     penaltyJac = [];
