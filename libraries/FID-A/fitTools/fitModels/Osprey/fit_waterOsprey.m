@@ -97,7 +97,7 @@ else
 end
 
 % Run non-linear solver
-[x] = LevenbergMarquardt(@(x) fit_waterOsprey_Model(x, dataToFit, resBasisSet, fitRangePPMWater),x0,lb,ub,opts);
+[x] = LM(@(x) fit_waterOsprey_Model(x, dataToFit, resBasisSet, fitRangePPMWater),x0,lb,ub,opts);
 
 
 %%% 4. PERFORM FINAL COMPUTATION OF LINEAR PARAMETERS %%%
