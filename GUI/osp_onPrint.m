@@ -27,7 +27,7 @@ function osp_onPrint( ~, ~ ,gui)
 %%% 1. GET DATA %%%
     MRSCont = getappdata(gui.figure,'MRSCont'); % Get MRSCont from hidden container in gui class
     selectedTab = get(gui.layout.tabs, 'Selection');
-    screenSize      = [1, 1, 1000, 900];
+    screenSize      = [1, 1, 1300, 1100];
     canvasSize      = screenSize;
     canvasSize(4)   = screenSize(4) * 0.7;
     canvasSize(3)   = canvasSize(4) * (11/8.5);
@@ -357,7 +357,7 @@ function osp_onPrint( ~, ~ ,gui)
             switch MRSCont.opts.fit.method
                 case 'LCModel'
                     % Number of metabolites and lipid/MM basis functions
-                    basisNames = MRSCont.fit.results.(gui.fit.Style).fitParams{gui.controls.Selected}.name;
+                    basisNames = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,subspectrum}.name;
                     nLip    = sum(~cellfun(@isempty, strfind(basisNames, 'Lip')));
                     nMM     = sum(~cellfun(@isempty, strfind(basisNames, 'MM')));
                     nMMLip  = nLip + nMM;
@@ -366,8 +366,12 @@ function osp_onPrint( ~, ~ ,gui)
                     % No info panel string for the water fit range
                     waterFitRangeString = '';
                     % Where are the metabolite names stored?
-                    basisSetNames = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected}.name;
-                    subSpecName = 'A';
+                    basisSetNames = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,subspectrum}.name;
+                    if subspectrum == 1                 %Works only or MEGA-PRESS and unedited
+                        subSpecName = 'A';
+                    else
+                        subSpecName = 'diff1';
+                    end
                     % Smaller fonts for the results
                     resultsFontSize = 6;
                 case 'Osprey'
@@ -404,10 +408,10 @@ function osp_onPrint( ~, ~ ,gui)
                 switch MRSCont.opts.fit.method
                     case 'LCModel'
                         if strcmp(gui.fit.Names{gui.fit.Selected}, 'ref') || strcmp(gui.fit.Names{gui.fit.Selected}, 'w')
-                            RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected}.h2oarea .* MRSCont.fit.scale{gui.controls.Selected};
+                            RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,subspectrum}.h2oarea .* MRSCont.fit.scale{gui.controls.Selected};
                         else
-                            RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
-                            CRLB    = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected}.CRLB;
+                            RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,subspectrum}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
+                            CRLB    = MRSCont.fit.results.(gui.fit.Style).fitParams{1,gui.controls.Selected,subspectrum}.CRLB;
                         end
                     case 'Osprey'
                         RawAmpl = MRSCont.fit.results.(gui.fit.Style).fitParams{basis,gui.controls.Selected,subspectrum}.ampl .* MRSCont.fit.scale{gui.controls.Selected};
@@ -551,6 +555,11 @@ function osp_onPrint( ~, ~ ,gui)
                         FitTextAmpl  = uicontrol('Parent',FitText,'style','text',...
                         'FontSize', 11, 'FontName', gui.font,'HorizontalAlignment', 'left', 'String', sprintf(RawAmplText),...
                         'BackgroundColor',gui.colormap.Background,'ForegroundColor', gui.colormap.Foreground);
+                        if strcmp(MRSCont.opts.fit.method, 'LCModel')
+                            FitTextCRLB  = uicontrol('Parent',FitText,'style','text',...
+                            'FontSize', 11, 'FontName', gui.font,'HorizontalAlignment', 'left', 'String', sprintf(CRLBText),...
+                            'BackgroundColor',gui.colormap.Background,'ForegroundColor', gui.colormap.Foreground);
+                        end
                 else %If water/reference data is fitted Raw amplitudes are calculated with regard to water
                     if ~(strcmp(gui.fit.Style, 'ref') || strcmp(gui.fit.Style, 'w')) %Metabolite fit
                         switch MRSCont.opts.fit.method
@@ -580,6 +589,11 @@ function osp_onPrint( ~, ~ ,gui)
                         FitTextAmpl  = uicontrol('Parent',FitText,'style','text',...
                         'FontSize', 11, 'FontName', gui.font,'HorizontalAlignment', 'left', 'String', sprintf(RawAmplText),...
                         'BackgroundColor',gui.colormap.Background,'ForegroundColor', gui.colormap.Foreground);
+                        if strcmp(MRSCont.opts.fit.method, 'LCModel')
+                            FitTextCRLB  = uicontrol('Parent',FitText,'style','text',...
+                            'FontSize', 11, 'FontName', gui.font,'HorizontalAlignment', 'left', 'String', sprintf(CRLBText),...
+                            'BackgroundColor',gui.colormap.Background,'ForegroundColor', gui.colormap.Foreground);
+                        end
                     else %Water/reference fit
                        NameText = ['Water: ' ];
                        RawAmplText = [num2str(RawAmpl,'%1.2e')];
