@@ -24,7 +24,11 @@ switch which
 end
 
 % Read the fit results from the .table files
-tab                 = mrs_readLcmodelTABLE([MRSCont.opts.fit.lcmodel.(lcmOutputFile){kk} '.table']);
+if isfile([MRSCont.opts.fit.lcmodel.(lcmOutputFile){kk} '.table'])
+    tab                 = mrs_readLcmodelTABLE([MRSCont.opts.fit.lcmodel.(lcmOutputFile){kk} '.table']);
+else
+    error('ERROR! Cannot find LCModel output table file %s. \nVery likely, LCModel has not been executed correctly.\n', [MRSCont.opts.fit.lcmodel.(lcmOutputFile){kk} '.table'])
+end
 fitParams.name      = tab.name;
 fitParams.CRLB      = tab.SDpct;
 fitParams.relConc   = tab.relative_conc;

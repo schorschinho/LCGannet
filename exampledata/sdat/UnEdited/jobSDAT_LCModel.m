@@ -199,6 +199,18 @@ opts.fit.fitMM              = 1;                % OPTIONS:    - 0 (no)
 % minimum control file for you.
 % opts.fit.controlFile        = '';
 
+
+% Specify custom LCModel binary path
+% You can set the path to a custom-compiled LCModel binary here. If left
+% empty, Osprey will try to use one of the pre-compiled binaries it is
+% shipped with.
+opts.fit.customLCModelBinary = 'C:\Users\goeltzs1\Documents\MATLAB\osprey\libraries\LCModel\custom\LCModel.exe';
+%%% ----- END LCMODEL FITTING OPTIONS -----
+
+
+% Optional: Deface the structural images in the Coreg/Seg figures for HIPAA
+% compliance 
+opts.img.deface             = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 

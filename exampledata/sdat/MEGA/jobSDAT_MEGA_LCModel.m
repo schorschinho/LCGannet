@@ -207,7 +207,15 @@ opts.fit.FWHMcoMM3          = 14;
 % minimum control file for you.
 % opts.fit.controlFile        = '';
 
-% Optional: Deface the strucutral images in the Coreg/Seg figures for HIPAA
+% Specify custom LCModel binary path
+% You can set the path to a custom-compiled LCModel binary here. If left
+% empty, Osprey will try to use one of the pre-compiled binaries it is
+% shipped with.
+% opts.fit.customLCModelBinary = '';
+%%% ----- END LCMODEL FITTING OPTIONS -----
+
+
+% Optional: Deface the structural images in the Coreg/Seg figures for HIPAA
 % compliance 
 opts.img.deface             = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

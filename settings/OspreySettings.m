@@ -19,6 +19,7 @@ function [MRSCont] = OspreySettings
 close all;
 
 %%% 1. REQUIRED INPUT FLAGS %%%
+
 % Initialise MRSCont struct with default settings
 MRSCont = struct;
 MRSCont.flags.isUnEdited            = 0;
@@ -46,12 +47,15 @@ MRSCont.opts.fit.fitMM              = 1;                % Add MM and lipid basis
 MRSCont.opts.fit.coMM3              = 'none';           % Add co-edited MM3 peak model for GABA editing? Default: none.
 MRSCont.opts.fit.FWHMcoMM3          = 14;               % FWHM [Hz] of the co-edited peak Default: 14 Hz.
 MRSCont.opts.ECC.raw                = 1;                % Do ECC for all metabolite spectra.
-MRSCont.opts.ECC.mm                 = 1;                 % Do ECC for all metabolite-nulled spectra.
+MRSCont.opts.ECC.mm                 = 1;                % Do ECC for all metabolite-nulled spectra.
 MRSCont.opts.cosmetics.LB           = 0;                % Do cosmetic LB
 MRSCont.opts.cosmetics.Zoom         = 2.75;             % Do cosmetic Zoom
 MRSCont.opts.img.deface             = 0;                % Deface data
 MRSCont.opts.load.undoPhaseCycle    = 1;                % Undo phase cycle for nifti MRS
+
+
 %%% 2. FIND AND SET PATHS %%%
+
 % Osprey
 [settingsFolder,~,~] = fileparts(which('OspreySettings.m'));
 if isempty(settingsFolder)
@@ -71,7 +75,9 @@ elseif strcmpi(spmversion(end-3:end),'spm8')
            'Please install SPM12 (https://www.fil.ion.ucl.ac.uk/spm/software/spm12) and include it in your MATLAB path.']);
 end
 
+
 %%% 3. INITIALISE MRSCONT FIELDS AND FLAGS %%%
+
 % Set default fields
 MRSCont.ospFolder           = ospFolder;
 MRSCont.files               = {};
@@ -88,7 +94,7 @@ MRSCont.flags.didLCMWrite   = 0;
 MRSCont.flags.didjMRUIWrite = 0;
 MRSCont.flags.didVendorWrite= 0;
 MRSCont.flags.didJob        = 0;
-MRSCont.flags.didLoad   = 0;
+MRSCont.flags.didLoad       = 0;
 MRSCont.flags.didProcess    = 0;
 MRSCont.flags.didCoreg      = 0;
 MRSCont.flags.didSeg        = 0;

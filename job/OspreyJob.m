@@ -224,7 +224,7 @@ if strcmp(jobFileFormat,'csv')
     if isfield(jobStruct,'deface')
         MRSCont.opts.img.deface = jobStruct.deface;
     else
-        fprintf('Structrual images are not defaced (default). Please indicate otherwise in the csv-file or the GUI \n');
+        fprintf('Structural images are not defaced (default). Please indicate otherwise in the csv-file or the GUI \n');
         MRSCont.opts.img.deface = 0;
     end
     if isfield(jobStruct,'exportParams')

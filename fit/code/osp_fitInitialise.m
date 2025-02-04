@@ -191,7 +191,7 @@ if isfield(MRSCont.opts.fit, 'basisSetFile') && ~strcmpi(MRSCont.opts.fit.method
     end
 end
 
-% For the compiled Windwos version we are suddenly seeing an additonal
+% For the compiled Windows version we are suddenly seeing an additonal
 % fileseparator in the basisset string. Fix this by removing the leading
 % character for Windows if it is a fileseparator.
 if ispc
