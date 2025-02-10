@@ -58,7 +58,7 @@ NormTra         = geom.rot.NormTra;
 VoI_InPlaneRot  = geom.rot.VoI_InPlaneRot;
 % Correct voxel offsets by table position (if field exists)
 if isfield(geom.pos,'TablePosTra')
-    VoxOffs = [geom.pos.PosSag+geom.pos.TablePosSag geom.pos.PosCor+geom.pos.TablePosCor geom.pos.PosTra+geom.pos.TablePosTra];
+    VoxOffs = [geom.pos.PosSag geom.pos.PosCor geom.pos.PosTra+geom.pos.TablePosTra];
 else
     VoxOffs = [geom.pos.PosSag geom.pos.PosCor geom.pos.PosTra];
 end

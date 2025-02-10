@@ -185,6 +185,7 @@ DicomHeader.NormTra              = dcmHeader.sSpecPara.sVoI.sNormal.dTra; % Tran
 DicomHeader.PosCor               = dcmHeader.sSpecPara.sVoI.sPosition.dCor; % Coronal coordinate of voxel [mm]
 DicomHeader.PosSag               = dcmHeader.sSpecPara.sVoI.sPosition.dSag; % Sagittal coordinate of voxel [mm]
 DicomHeader.PosTra               = dcmHeader.sSpecPara.sVoI.sPosition.dTra; % Transversal coordinate of voxel [mm]
+DicomHeader.TablePosTra          = dcmHeader.lScanRegionPosTra; % Transversal table position [mm]
 
 % delta frequency (center of slice selection)
 if isfield(dcmHeader.sSpecPara, 'dDeltaFrequency')

@@ -129,6 +129,7 @@ geometry.size.VoIThickness  = DicomHeader.VoIThickness; % Voxel size in slice se
 geometry.pos.PosCor         = DicomHeader.PosCor; % Coronal coordinate of voxel [mm]
 geometry.pos.PosSag         = DicomHeader.PosSag; % Sagittal coordinate of voxel [mm]
 geometry.pos.PosTra         = DicomHeader.PosTra; % Transversal coordinate of voxel [mm]
+geometry.pos.TablePosTra    = DicomHeader.TablePosTra; % Transversal table position [mm]
 geometry.rot.VoI_InPlaneRot = DicomHeader.VoI_InPlaneRot; % Voxel rotation in plane
 geometry.rot.NormCor        = DicomHeader.NormCor; % Coronal component of normal vector of voxel
 geometry.rot.NormSag        = DicomHeader.NormSag; % Sagittal component of normal vector of voxel
