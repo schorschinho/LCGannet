@@ -90,9 +90,11 @@ isMinn_dkd=~isempty(strfind(sequence,'svs_slaser_dkd')) ||...   % ... or Dinesh 
 isSiemens=(~isempty(strfind(sequence,'svs_se')) ||... %Is this the Siemens PRESS seqeunce?
             ~isempty(strfind(sequence,'svs_st'))) && ... % or the Siemens STEAM sequence?
             isempty(strfind(sequence,'eja_svs'));    %And make sure it's not 'eja_svs_steam'.
-isUniversal = ~isempty(strfind(sequence,'univ')) ||... %Is JHU universal editing sequence
-              ~isempty(strfind(sequence,'smm_svs_herc')) ||... % Is Pavi's HERCULES sequence
-              ~isempty(strfind(sequence,'svs_herc_gls')); % Is Gize's HERCULES sequence
+isUniversal = ~isempty(strfind(sequence,'univ')) ||...                  % Is JHU universal editing sequence
+              ~isempty(strfind(sequence,'smm_svs_herc')) ||...          % Is Pavi's HERCULES sequence
+              ~isempty(strfind(sequence,'svs_herc_gls')) ||...          % Is Gize's HERCULES sequence
+              ~isempty(strfind(sequence,'svs_se_herc_gls_v2')) || ...   % Is Gize's HERCULES sequence v2
+              ~isempty(strfind(sequence,'smm_svs_herm'));               % Is Pavi's HERMES sequence
 isDondersMRSfMRI = contains(sequence,'moco_nav_set'); %Is combined fMRI-MRS sequence implemented at Donders Institute NL
 isConnectom = contains(twix_obj.hdr.Dicom.ManufacturersModelName,'Connectom'); %Is from Connectom scanner (Apparently svs_se Dims are not as expected for vd)
 
