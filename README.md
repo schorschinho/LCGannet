@@ -85,7 +85,12 @@ Make sure to remove FID-A and Gannet from your MATLAB path.
 
 ## Contact, Feedback, Suggestions
 
-For any sort of questions, feedback, suggestions, or critique, please visit the [Osprey support forum](https://forum.mrshub.org/c/mrs-software/osprey/10) on the [MRSHub](https://www.mrshub.org).
+To report bugs and problems or to request features, please open a [GitHub Issue](https://github.com/schorschinho/osprey/issues).
+
+For all other questions, feedback, suggestions, or critique, please visit either:
+
+- the [GitHub Discussions forum in this repository](https://github.com/schorschinho/osprey/discussions) or
+- the [Osprey support forum](https://forum.mrshub.org/c/mrs-software/osprey/10) on the [MRSHub](https://www.mrshub.org), if you think your question is of significance to the wider community.
 
 We also welcome your direct contributions to Osprey here in the GitHub repository.
 

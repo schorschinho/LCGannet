@@ -31,7 +31,12 @@ quantitative analysis of in-vivo magnetic resonance spectroscopy (MRS) data.
 
 ## Contact, Feedback, Suggestions {-}
 
-For any sort of questions, feedback, suggestions, or critique, please visit the [Osprey support forum](https://forum.mrshub.org/c/mrs-software/osprey/10) on the [MRSHub](https://www.mrshub.org).
+To report bugs and problems or to request features, please open a [GitHub Issue](https://github.com/schorschinho/osprey/issues).
+
+For all other questions, feedback, suggestions, or critique, please visit either:
+
+- the [GitHub Discussions forum in this repository](https://github.com/schorschinho/osprey/discussions) or
+- the [Osprey support forum](https://forum.mrshub.org/c/mrs-software/osprey/10) on the [MRSHub](https://www.mrshub.org), if you think your question is of significance to the wider community.
 
 We also welcome your direct contributions to Osprey in the [Osprey GitHub repository](https://github.com/schorschinho/osprey).
 
@@ -47,18 +52,24 @@ Should you publish material that made use of Osprey, please cite the following p
 
 ## Acknowledgements {-}
 
-This work has been supported by NIH grants R01EB016089, P41EB15909, R01EB023963, and K99AG062230.
+This work has been supported by NIH grants R01 EB016089, P41 EB15909, P41 EB031771, R01 EB023963, K99/R00 AG062230, R21 EB033516, R01 EB035529, and K99 AG 080084.
 
-We wish to thank the following individuals for their contributions to the
+We wish to thank collaborators and partners for providing LCModel basis sets and control files. If you use these resources for your analysis of the following data types, please mention the respective individuals in your acknowledgements:
+
+- Siemens 7T STEAM (TE = 5 ms): Dr. Dinesh Deelchand (University of Minnesota)
+- Siemens 3T and 7T SPECIAL (TE = 8.5/9 ms): Dr. Ariane Fillmer (PTB Berlin)
+
+We also wish to thank the following individuals for their contributions to the
 development of Osprey and shared processing code:
 
 - Jamie Near (McGill University, Montreal)
 - Ralph Noeske (GE Healthcare, Berlin)
-- Peter Barker (Johns Hopkins University, Baltimore)
-- Robin de Graaf (Yale School of Medicine, New Haven)
+- Peter Barker (Johns Hopkins University, Baltimore, MD)
+- Robin de Graaf (Yale School of Medicine, New Haven, CT)
 - Philipp Ehses (German Center for Neurodegenerative Diseases, Bonn)
 - Wouter Potters (UMC Amsterdam)
-- Xiangrui Li (Ohio State University, Columbus)
+- Xiangrui Li (Ohio State University, Columbus, OH)
+- Peter Van Schuerbeek (UZ Brussel)
 
 We are particularly grateful for the incredible [raincloud plot tools](https://github.com/RainCloudPlots/RainCloudPlots) developed by Micah Allen, Davide Poggiali, Kirstie Whitaker, Tom Rhys Marshall, and Rogier Kievit. Should you make use of the OspreyOverview raincloud plots, please consider citing their original publications:
 
